@@ -1,4 +1,4 @@
-use atomic_refcell::AtomicRefMut;
+use atomic_refcell::{AtomicRef, AtomicRefMut};
 use clap_sys::ext::remote_controls::{clap_remote_controls_page, CLAP_REMOTE_CONTROLS_COUNT};
 use clap_sys::id::{clap_id, CLAP_INVALID_ID};
 use clap_sys::string_sizes::CLAP_NAME_SIZE;
@@ -7,6 +7,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
 use super::wrapper::{OutputParamEvent, Task, Wrapper};
+use crate::context::TrackInfo;
 use crate::event_loop::EventLoop;
 use crate::prelude::{
     ClapPlugin, GuiContext, InitContext, ParamPtr, PluginApi, PluginNoteEvent, ProcessContext,
@@ -41,6 +42,7 @@ pub(crate) struct WrapperProcessContext<'a, P: ClapPlugin> {
     pub(super) input_events_guard: AtomicRefMut<'a, VecDeque<PluginNoteEvent<P>>>,
     pub(super) output_events_guard: AtomicRefMut<'a, VecDeque<PluginNoteEvent<P>>>,
     pub(super) transport: Transport,
+    pub(super) track_info_guard: AtomicRef<'a, Option<TrackInfo>>,
 }
 
 /// A [`GuiContext`] implementation for the wrapper. This is passed to the plugin in
@@ -124,6 +126,10 @@ impl<P: ClapPlugin> ProcessContext<P> for WrapperProcessContext<'_, P> {
 
     fn set_current_voice_capacity(&self, capacity: u32) {
         self.wrapper.set_current_voice_capacity(capacity)
+    }
+
+    fn track_info(&self) -> Option<&TrackInfo> {
+        self.track_info_guard.as_ref()
     }
 }
 

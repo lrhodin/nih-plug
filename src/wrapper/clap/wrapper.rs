@@ -47,6 +47,12 @@ use clap_sys::ext::render::{
 use clap_sys::ext::state::{clap_plugin_state, CLAP_EXT_STATE};
 use clap_sys::ext::tail::{clap_plugin_tail, CLAP_EXT_TAIL};
 use clap_sys::ext::thread_check::{clap_host_thread_check, CLAP_EXT_THREAD_CHECK};
+use clap_sys::ext::track_info::{
+    clap_host_track_info, clap_plugin_track_info, clap_track_info, CLAP_EXT_TRACK_INFO,
+    CLAP_TRACK_INFO_HAS_TRACK_COLOR, CLAP_TRACK_INFO_HAS_TRACK_NAME,
+    CLAP_TRACK_INFO_IS_FOR_BUS, CLAP_TRACK_INFO_IS_FOR_MASTER,
+    CLAP_TRACK_INFO_IS_FOR_RETURN_TRACK,
+};
 use clap_sys::ext::voice_info::{
     clap_host_voice_info, clap_plugin_voice_info, clap_voice_info, CLAP_EXT_VOICE_INFO,
     CLAP_VOICE_INFO_SUPPORTS_OVERLAPPING_NOTES,
@@ -55,6 +61,7 @@ use clap_sys::fixedpoint::{CLAP_BEATTIME_FACTOR, CLAP_SECTIME_FACTOR};
 use clap_sys::host::clap_host;
 use clap_sys::id::{clap_id, CLAP_INVALID_ID};
 use clap_sys::plugin::clap_plugin;
+use clap_sys::string_sizes::CLAP_NAME_SIZE;
 use clap_sys::process::{
     clap_process, clap_process_status, CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET,
     CLAP_PROCESS_ERROR,
@@ -82,6 +89,7 @@ use super::descriptor::PluginDescriptor;
 use super::util::ClapPtr;
 use crate::event_loop::{BackgroundThread, EventLoop, MainThreadExecutor, TASK_QUEUE_CAPACITY};
 use crate::midi::MidiResult;
+use crate::context::TrackInfo;
 use crate::prelude::{
     AsyncExecutor, AudioIOLayout, AuxiliaryBuffers, BufferConfig, ClapPlugin, Editor, MidiConfig,
     NoteEvent, ParamFlags, ParamPtr, Params, ParentWindowHandle, Plugin, PluginNoteEvent,
@@ -241,6 +249,11 @@ pub struct Wrapper<P: ClapPlugin> {
     /// of active voices using a context method called from the initialization or processing
     /// context. This defaults to the maximum number of voices.
     current_voice_capacity: AtomicU32,
+
+    clap_plugin_track_info: clap_plugin_track_info,
+    host_track_info: AtomicRefCell<Option<ClapPtr<clap_host_track_info>>>,
+    /// Current track information from host (CLAP track-info extension)
+    track_info: AtomicRefCell<Option<TrackInfo>>,
 
     /// A queue of tasks that still need to be performed. Because CLAP lets the plugin request a
     /// host callback directly, we don't need to use the OsEventLoop we use in our other plugin
@@ -681,6 +694,12 @@ impl<P: ClapPlugin> Wrapper<P> {
                     .unwrap_or(1),
             ),
 
+            clap_plugin_track_info: clap_plugin_track_info {
+                changed: Some(Self::ext_track_info_changed),
+            },
+            host_track_info: AtomicRefCell::new(None),
+            track_info: AtomicRefCell::new(None),
+
             tasks: ArrayQueue::new(TASK_QUEUE_CAPACITY),
             main_thread_id: thread::current().id(),
             // Initialized later as it needs a reference to the wrapper for the executor
@@ -752,6 +771,7 @@ impl<P: ClapPlugin> Wrapper<P> {
             input_events_guard: self.input_events.borrow_mut(),
             output_events_guard: self.output_events.borrow_mut(),
             transport,
+            track_info_guard: self.track_info.borrow(),
         }
     }
 
@@ -1769,6 +1789,58 @@ impl<P: ClapPlugin> Wrapper<P> {
         }
     }
 
+    /// Update track info by querying the host. Called on init and when track info changes.
+    fn update_track_info(&self) {
+        if let Some(host_track_info) = &*self.host_track_info.borrow() {
+            let mut info = clap_track_info {
+                flags: 0,
+                name: [0; CLAP_NAME_SIZE],
+                color: clap_sys::color::clap_color {
+                    red: 0,
+                    green: 0,
+                    blue: 0,
+                    alpha: 255,
+                },
+                audio_channel_count: 0,
+                audio_port_type: std::ptr::null(),
+            };
+
+            // SAFETY: Calling host extension with valid pointers
+            if unsafe { clap_call! { host_track_info=>get(&*self.host_callback, &mut info) } } {
+                let mut track_info = TrackInfo::default();
+
+                // Extract track name
+                if info.flags & CLAP_TRACK_INFO_HAS_TRACK_NAME != 0 {
+                    // SAFETY: CLAP guarantees null-terminated string
+                    track_info.name = Some(unsafe {
+                        CStr::from_ptr(info.name.as_ptr())
+                            .to_string_lossy()
+                            .into_owned()
+                    });
+                }
+
+                // Extract track color
+                if info.flags & CLAP_TRACK_INFO_HAS_TRACK_COLOR != 0 {
+                    track_info.color = Some((
+                        info.color.red,
+                        info.color.green,
+                        info.color.blue,
+                        info.color.alpha,
+                    ));
+                }
+
+                // Extract track type
+                track_info.track_type = crate::context::TrackType {
+                    is_master: info.flags & CLAP_TRACK_INFO_IS_FOR_MASTER != 0,
+                    is_bus: info.flags & CLAP_TRACK_INFO_IS_FOR_BUS != 0,
+                    is_return: info.flags & CLAP_TRACK_INFO_IS_FOR_RETURN_TRACK != 0,
+                };
+
+                *self.track_info.borrow_mut() = Some(track_info);
+            }
+        }
+    }
+
     /// Immediately set the plugin state. Returns `false` if the deserialization failed. The plugin
     /// state is set from a couple places, so this function aims to deduplicate that. Includes
     /// `permit_alloc()`s around the deserialization and initialization for the use case where
@@ -1855,6 +1927,13 @@ impl<P: ClapPlugin> Wrapper<P> {
             &wrapper.host_callback,
             CLAP_EXT_THREAD_CHECK,
         );
+        *wrapper.host_track_info.borrow_mut() = query_host_extension::<clap_host_track_info>(
+            &wrapper.host_callback,
+            CLAP_EXT_TRACK_INFO,
+        );
+
+        // Query initial track info if available
+        wrapper.update_track_info();
 
         true
     }
@@ -2335,6 +2414,8 @@ impl<P: ClapPlugin> Wrapper<P> {
             &wrapper.clap_plugin_state as *const _ as *const c_void
         } else if id == CLAP_EXT_TAIL {
             &wrapper.clap_plugin_tail as *const _ as *const c_void
+        } else if id == CLAP_EXT_TRACK_INFO {
+            &wrapper.clap_plugin_track_info as *const _ as *const c_void
         } else if id == CLAP_EXT_VOICE_INFO && P::CLAP_POLY_MODULATION_CONFIG.is_some() {
             &wrapper.clap_plugin_voice_info as *const _ as *const c_void
         } else {
@@ -3184,6 +3265,13 @@ impl<P: ClapPlugin> Wrapper<P> {
             ProcessStatus::KeepAlive => u32::MAX,
             _ => 0,
         }
+    }
+
+    unsafe extern "C" fn ext_track_info_changed(plugin: *const clap_plugin) {
+        check_null_ptr!((), plugin, (*plugin).plugin_data);
+        let wrapper = &*((*plugin).plugin_data as *const Self);
+
+        wrapper.update_track_info();
     }
 
     unsafe extern "C" fn ext_voice_info_get(
