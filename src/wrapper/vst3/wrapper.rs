@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::ffi::c_void;
+use std::ffi::{c_void, CStr};
 use std::mem::{self, MaybeUninit};
 use std::num::NonZeroU32;
 use std::ptr::NonNull;
@@ -11,10 +11,10 @@ use vst3_sys::base::{IBStream, IPluginBase};
 use vst3_sys::utils::SharedVstPtr;
 use vst3_sys::vst::{
     kNoParamId, kNoParentUnitId, kNoProgramListId, kRootUnitId, Event, EventTypes, IAudioProcessor,
-    IComponent, IEditController, IEventList, IMidiMapping, INoteExpressionController,
-    IParamValueQueue, IParameterChanges, IProcessContextRequirements, IUnitInfo,
-    LegacyMidiCCOutEvent, NoteExpressionTypeInfo, NoteExpressionValueDescription, NoteOffEvent,
-    NoteOnEvent, ParameterFlags, PolyPressureEvent, ProgramListInfo, TChar, UnitInfo,
+    IAttributeList, IComponent, IEditController, IEventList, IInfoListener, IMidiMapping,
+    INoteExpressionController, IParamValueQueue, IParameterChanges, IProcessContextRequirements,
+    IUnitInfo, LegacyMidiCCOutEvent, NoteExpressionTypeInfo, NoteExpressionValueDescription,
+    NoteOffEvent, NoteOnEvent, ParameterFlags, PolyPressureEvent, ProgramListInfo, TChar, UnitInfo,
 };
 use vst3_sys::VST3;
 use widestring::U16CStr;
@@ -26,6 +26,7 @@ use super::util::{
 };
 use super::util::{VST3_MIDI_CHANNELS, VST3_MIDI_PARAMS_END};
 use super::view::WrapperView;
+use crate::context::TrackInfo;
 use crate::prelude::{
     AuxiliaryBuffers, BufferConfig, MidiConfig, NoteEvent, ParamFlags, ProcessMode, ProcessStatus,
     SysExMessage, Transport, Vst3Plugin,
@@ -45,7 +46,8 @@ use vst3_sys as vst3_com;
     IMidiMapping,
     INoteExpressionController,
     IProcessContextRequirements,
-    IUnitInfo
+    IUnitInfo,
+    IInfoListener
 ))]
 pub struct Wrapper<P: Vst3Plugin> {
     inner: Arc<WrapperInner<P>>,
@@ -1891,5 +1893,81 @@ impl<P: Vst3Plugin> IUnitInfo for Wrapper<P> {
         _data: SharedVstPtr<dyn IBStream>,
     ) -> tresult {
         kInvalidArgument
+    }
+}
+
+impl<P: Vst3Plugin> IInfoListener for Wrapper<P> {
+    unsafe fn set_channel_context_infos(&self, list: *mut c_void) -> tresult {
+        if list.is_null() {
+            return kInvalidArgument;
+        }
+
+        // Cast the raw pointer to IAttributeList
+        let list = &*(list as *const *const dyn IAttributeList);
+        let list = &**list;
+
+        let mut track_info = TrackInfo::default();
+
+        // Extract track name
+        let mut name_tchar = [0i16; 128];
+        let name_key = CStr::from_bytes_with_nul_unchecked(
+            b"Steinberg.Vst.ChannelContext.ChannelName\0"
+        );
+        if list.get_string(
+            name_key.as_ptr(),
+            name_tchar.as_mut_ptr(),
+            name_tchar.len() as u32,
+        ) == kResultOk
+        {
+            // Find null terminator and convert from tchar (i16) to u16
+            let len = name_tchar.iter().position(|&c| c == 0).unwrap_or(name_tchar.len());
+            let name_u16: Vec<u16> = name_tchar[..len].iter().map(|&c| c as u16).collect();
+            track_info.name = Some(String::from_utf16_lossy(&name_u16));
+        }
+
+        // Extract track color (ARGB format)
+        let mut color: i64 = 0;
+        let color_key = CStr::from_bytes_with_nul_unchecked(
+            b"Steinberg.Vst.ChannelContext.ChannelColor\0"
+        );
+        if list.get_int(color_key.as_ptr(), &mut color) == kResultOk {
+            let color_u32 = color as u32;
+            track_info.color = Some((
+                ((color_u32 >> 16) & 0xFF) as u8, // R
+                ((color_u32 >> 8) & 0xFF) as u8,  // G
+                (color_u32 & 0xFF) as u8,         // B
+                ((color_u32 >> 24) & 0xFF) as u8, // A
+            ));
+        }
+
+        // Extract channel index
+        let mut index: i64 = 0;
+        let index_key = CStr::from_bytes_with_nul_unchecked(
+            b"Steinberg.Vst.ChannelContext.ChannelIndex\0"
+        );
+        if list.get_int(index_key.as_ptr(), &mut index) == kResultOk {
+            track_info.index = Some(index as i32);
+        }
+
+        // Extract channel UID
+        let mut uid_tchar = [0i16; 128];
+        let uid_key = CStr::from_bytes_with_nul_unchecked(
+            b"Steinberg.Vst.ChannelContext.ChannelUID\0"
+        );
+        if list.get_string(
+            uid_key.as_ptr(),
+            uid_tchar.as_mut_ptr(),
+            uid_tchar.len() as u32,
+        ) == kResultOk
+        {
+            let len = uid_tchar.iter().position(|&c| c == 0).unwrap_or(uid_tchar.len());
+            let uid_u16: Vec<u16> = uid_tchar[..len].iter().map(|&c| c as u16).collect();
+            track_info.uid = Some(String::from_utf16_lossy(&uid_u16));
+        }
+
+        // Store the track info
+        *self.inner.track_info.borrow_mut() = Some(track_info);
+
+        kResultOk
     }
 }

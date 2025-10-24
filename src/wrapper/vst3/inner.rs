@@ -15,6 +15,7 @@ use super::param_units::ParamUnits;
 use super::util::{ObjectPtr, VstPtr, VST3_MIDI_PARAMS_END, VST3_MIDI_PARAMS_START};
 use super::view::WrapperView;
 use crate::event_loop::{EventLoop, MainThreadExecutor, OsEventLoop};
+use crate::context::TrackInfo;
 use crate::prelude::{
     AsyncExecutor, AudioIOLayout, BufferConfig, Editor, MidiConfig, ParamFlags, ParamPtr, Params,
     Plugin, PluginNoteEvent, ProcessMode, ProcessStatus, TaskExecutor, Transport, Vst3Plugin,
@@ -137,6 +138,9 @@ pub(crate) struct WrapperInner<P: Vst3Plugin> {
     /// having to add a setter function to the parameter (or even worse, have it be completely
     /// untyped).
     pub param_ptr_to_hash: HashMap<ParamPtr, u32>,
+
+    /// Current track information from host (VST3 IInfoListener)
+    pub track_info: AtomicRefCell<Option<TrackInfo>>,
 }
 
 /// Tasks that can be sent from the plugin to be executed on the main thread in a non-blocking
@@ -318,6 +322,8 @@ impl<P: Vst3Plugin> WrapperInner<P> {
             param_units,
             param_id_to_hash,
             param_ptr_to_hash,
+
+            track_info: AtomicRefCell::new(None),
         });
 
         // FIXME: Right now this is safe, but if we are going to have a singleton main thread queue
