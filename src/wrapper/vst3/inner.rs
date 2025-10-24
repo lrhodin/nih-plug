@@ -384,6 +384,7 @@ impl<P: Vst3Plugin> WrapperInner<P> {
             input_events_guard: self.input_events.borrow_mut(),
             output_events_guard: self.output_events.borrow_mut(),
             transport,
+            track_info_guard: self.track_info.borrow(),
         }
     }
 

@@ -1,10 +1,11 @@
-use atomic_refcell::AtomicRefMut;
+use atomic_refcell::{AtomicRef, AtomicRefMut};
 use std::cell::Cell;
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use vst3_sys::vst::IComponentHandler;
 
+use crate::context::TrackInfo;
 use crate::prelude::{
     GuiContext, InitContext, ParamPtr, PluginApi, PluginNoteEvent, PluginState, ProcessContext,
     Transport, Vst3Plugin,
@@ -42,6 +43,7 @@ pub(crate) struct WrapperProcessContext<'a, P: Vst3Plugin> {
     pub(super) input_events_guard: AtomicRefMut<'a, VecDeque<PluginNoteEvent<P>>>,
     pub(super) output_events_guard: AtomicRefMut<'a, VecDeque<PluginNoteEvent<P>>>,
     pub(super) transport: Transport,
+    pub(super) track_info_guard: AtomicRef<'a, Option<TrackInfo>>,
 }
 
 /// A [`GuiContext`] implementation for the wrapper. This is passed to the plugin in
@@ -117,13 +119,8 @@ impl<P: Vst3Plugin> ProcessContext<P> for WrapperProcessContext<'_, P> {
         // This is only supported by CLAP
     }
 
-    fn track_info(&self) -> Option<&crate::context::TrackInfo> {
-        // SAFETY: We're returning a reference that's valid for the lifetime of the borrow.
-        // The AtomicRefCell ensures thread-safe access.
-        unsafe {
-            let info_ref = self.inner.track_info.borrow();
-            std::mem::transmute(info_ref.as_ref())
-        }
+    fn track_info(&self) -> Option<&TrackInfo> {
+        self.track_info_guard.as_ref()
     }
 }
 
