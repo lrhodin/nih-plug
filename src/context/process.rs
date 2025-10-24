@@ -92,6 +92,14 @@ pub trait ProcessContext<P: Plugin> {
     /// monophonic modulation when dropping the capacity down to 1.
     fn set_current_voice_capacity(&self, capacity: u32);
 
+    /// Returns current track information if available from the host.
+    ///
+    /// This is supported for VST3 (via IInfoListener) and CLAP (via track-info extension).
+    /// The standalone wrapper always returns None.
+    fn track_info(&self) -> Option<&crate::context::TrackInfo> {
+        None // Default implementation for backwards compatibility
+    }
+
     // TODO: Add this, this works similar to [GuiContext::set_parameter] but it adds the parameter
     //       change to a queue (or directly to the VST3 plugin's parameter output queues) instead of
     //       using main thread host automation (and all the locks involved there).

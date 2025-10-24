@@ -82,7 +82,7 @@
 //! There's a whole lot more to discuss, but once you understand the above you should be able to
 //! figure out the rest by reading through the examples and the API documentation. Good luck!
 
-#![cfg_attr(feature = "docs", feature(doc_auto_cfg))]
+#![cfg_attr(feature = "docs", feature(doc_cfg))]
 #![cfg_attr(feature = "simd", feature(portable_simd))]
 // Around Rust 1.64 Clippy started throwing this for all instances of `dyn Fn(...) -> ... + Send +
 // Sync`. Creating type aliases for all of these callbacks probably won't make things easier to read.
