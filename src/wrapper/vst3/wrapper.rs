@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::ffi::{c_void, CStr};
+use std::ffi::c_void;
 use std::mem::{self, MaybeUninit};
 use std::num::NonZeroU32;
 use std::ptr::NonNull;
@@ -1910,9 +1910,7 @@ impl<P: Vst3Plugin> IInfoListener for Wrapper<P> {
 
         // Extract track name
         let mut name_tchar = [0i16; 128];
-        let name_key = CStr::from_bytes_with_nul_unchecked(
-            b"Steinberg.Vst.ChannelContext.ChannelName\0"
-        );
+        let name_key = c"Steinberg.Vst.ChannelContext.ChannelName";
         if list.get_string(
             name_key.as_ptr(),
             name_tchar.as_mut_ptr(),
@@ -1927,9 +1925,7 @@ impl<P: Vst3Plugin> IInfoListener for Wrapper<P> {
 
         // Extract track color (ARGB format)
         let mut color: i64 = 0;
-        let color_key = CStr::from_bytes_with_nul_unchecked(
-            b"Steinberg.Vst.ChannelContext.ChannelColor\0"
-        );
+        let color_key = c"Steinberg.Vst.ChannelContext.ChannelColor";
         if list.get_int(color_key.as_ptr(), &mut color) == kResultOk {
             let color_u32 = color as u32;
             track_info.color = Some((
@@ -1942,18 +1938,14 @@ impl<P: Vst3Plugin> IInfoListener for Wrapper<P> {
 
         // Extract channel index
         let mut index: i64 = 0;
-        let index_key = CStr::from_bytes_with_nul_unchecked(
-            b"Steinberg.Vst.ChannelContext.ChannelIndex\0"
-        );
+        let index_key = c"Steinberg.Vst.ChannelContext.ChannelIndex";
         if list.get_int(index_key.as_ptr(), &mut index) == kResultOk {
             track_info.index = Some(index as i32);
         }
 
         // Extract channel UID
         let mut uid_tchar = [0i16; 128];
-        let uid_key = CStr::from_bytes_with_nul_unchecked(
-            b"Steinberg.Vst.ChannelContext.ChannelUID\0"
-        );
+        let uid_key = c"Steinberg.Vst.ChannelContext.ChannelUID";
         if list.get_string(
             uid_key.as_ptr(),
             uid_tchar.as_mut_ptr(),
