@@ -5693,6 +5693,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "track_info_display"
+version = "0.1.0"
+dependencies = [
+ "atomic_refcell",
+ "nih_plug",
+ "nih_plug_vizia",
+]
+
+[[package]]
 name = "track_info_test"
 version = "0.1.0"
 dependencies = [

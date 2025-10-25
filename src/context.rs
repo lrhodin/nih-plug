@@ -61,3 +61,92 @@ impl Display for PluginApi {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn track_info_default() {
+        let info = TrackInfo::default();
+        assert_eq!(info.name, None);
+        assert_eq!(info.color, None);
+        assert_eq!(info.index, None);
+        assert_eq!(info.uid, None);
+        assert!(!info.track_type.is_master);
+        assert!(!info.track_type.is_bus);
+        assert!(!info.track_type.is_return);
+    }
+
+    #[test]
+    fn track_info_equality() {
+        let mut info1 = TrackInfo::default();
+        let mut info2 = TrackInfo::default();
+
+        info1.name = Some("Track 1".to_string());
+        info2.name = Some("Track 1".to_string());
+
+        info1.color = Some((255, 0, 0, 255));
+        info2.color = Some((255, 0, 0, 255));
+
+        assert_eq!(info1, info2);
+    }
+
+    #[test]
+    fn track_info_inequality() {
+        let mut info1 = TrackInfo::default();
+        let mut info2 = TrackInfo::default();
+
+        info1.name = Some("Track 1".to_string());
+        info2.name = Some("Track 2".to_string());
+
+        assert_ne!(info1, info2);
+    }
+
+    #[test]
+    fn track_type_flags() {
+        let mut track_type = TrackType::default();
+        assert!(!track_type.is_master);
+
+        track_type.is_master = true;
+        track_type.is_bus = true;
+
+        assert!(track_type.is_master);
+        assert!(track_type.is_bus);
+        assert!(!track_type.is_return);
+    }
+
+    #[test]
+    fn track_type_equality() {
+        let mut type1 = TrackType::default();
+        let mut type2 = TrackType::default();
+
+        type1.is_master = true;
+        type2.is_master = true;
+
+        assert_eq!(type1, type2);
+    }
+
+    #[test]
+    fn track_info_with_all_fields() {
+        let info = TrackInfo {
+            name: Some("Lead Vocal".to_string()),
+            color: Some((120, 200, 80, 255)),
+            index: Some(5),
+            uid: Some("track-uuid-12345".to_string()),
+            track_type: TrackType {
+                is_master: false,
+                is_bus: true,
+                is_return: false,
+            },
+        };
+
+        assert_eq!(info.name.as_deref(), Some("Lead Vocal"));
+        assert_eq!(info.color, Some((120, 200, 80, 255)));
+        assert_eq!(info.index, Some(5));
+        assert_eq!(info.uid.as_deref(), Some("track-uuid-12345"));
+        assert!(!info.track_type.is_master);
+        assert!(info.track_type.is_bus);
+        assert!(!info.track_type.is_return);
+    }
+}

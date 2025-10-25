@@ -35,6 +35,7 @@ members = [
   "plugins/examples/stft",
   "plugins/examples/sysex",
   "plugins/examples/track_info_test",
+  "plugins/examples/track_info_display",
 
   "plugins/soft_vacuum",
   "plugins/buffr_glitch",
