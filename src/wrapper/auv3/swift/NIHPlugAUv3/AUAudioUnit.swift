@@ -62,33 +62,32 @@ import AudioToolbox
     
     private func setupAudioUnit() {
         print("NIHPlugAUv3: Setting up audio unit...")
-        
-        // Test FFI integration by calling a simple function
-        // This forces the linker to include the FFI symbols
-        let testHandle = plugin_create()
-        if testHandle != nil {
-            print("NIHPlugAUv3: FFI plugin_create() succeeded - handle: \(testHandle!)")
-            let paramCount = plugin_get_parameter_count(testHandle!)
-            print("NIHPlugAUv3: Plugin has \(paramCount) parameters")
-            let destroyResult = plugin_destroy(testHandle!)
-            print("NIHPlugAUv3: Plugin destroy result: \(destroyResult)")
-        } else {
-            print("NIHPlugAUv3: FFI plugin_create() failed")
-        }
-        
+
+        // DISABLED FFI TEST CODE - Testing if this prevents initialization
+        // let testHandle = plugin_create()
+        // if testHandle != nil {
+        //     print("NIHPlugAUv3: FFI plugin_create() succeeded - handle: \(testHandle!)")
+        //     let paramCount = plugin_get_parameter_count(testHandle!)
+        //     print("NIHPlugAUv3: Plugin has \(paramCount) parameters")
+        //     let destroyResult = plugin_destroy(testHandle!)
+        //     print("NIHPlugAUv3: Plugin destroy result: \(destroyResult)")
+        // } else {
+        //     print("NIHPlugAUv3: FFI plugin_create() failed")
+        // }
+
         // Set up input and output busses
         // For now, we'll use stereo input/output
         let inputBus = try! AUAudioUnitBus(format: AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2)!)
         let outputBus = try! AUAudioUnitBus(format: AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2)!)
-        
+
         _inputBusses = AUAudioUnitBusArray(audioUnit: self, busType: .input, busses: [inputBus])
         _outputBusses = AUAudioUnitBusArray(audioUnit: self, busType: .output, busses: [outputBus])
-        
+
         print("NIHPlugAUv3: Input busses: \(_inputBusses?.count ?? 0), Output busses: \(_outputBusses?.count ?? 0)")
-        
+
         // Set up parameter tree
         setupParameterTree()
-        
+
         print("NIHPlugAUv3: Audio unit setup completed")
     }
     
@@ -123,13 +122,13 @@ import AudioToolbox
     }
     
     // MARK: - Required Audio Unit Properties
-    
+
     /// Indicates whether the audio unit can process audio in-place.
     public override var canProcessInPlace: Bool {
         print("NIHPlugAUv3: canProcessInPlace getter called")
         return true
     }
-    
+
     /// Maximum number of frames the audio unit can render in a single call.
     public override var maximumFramesToRender: AUAudioFrameCount {
         get {
@@ -141,7 +140,16 @@ import AudioToolbox
             // Do nothing - we don't support changing this
         }
     }
-    
+
+    // COMMENTED OUT FOR TESTING - THIS WAS CAUSING CRASHES
+    // /// Channel capabilities - declares support for stereo input/output.
+    // /// Format: [inputChannels, outputChannels]
+    // /// (2, 2) means 2 input channels -> 2 output channels (stereo)
+    // public override var channelCapabilities: [NSNumber]? {
+    //     print("NIHPlugAUv3: channelCapabilities getter called")
+    //     return [2, 2]
+    // }
+
     // MARK: - Required Audio Unit Interface Methods
     
     public override func allocateRenderResources() throws {

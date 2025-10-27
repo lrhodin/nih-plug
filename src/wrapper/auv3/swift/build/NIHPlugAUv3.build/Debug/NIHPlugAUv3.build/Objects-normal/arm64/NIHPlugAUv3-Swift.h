@@ -279,7 +279,9 @@ typedef unsigned int swift_uint4  __attribute__((__ext_vector_type__(4)));
 #if __has_warning("-Watimport-in-framework-header")
 #pragma clang diagnostic ignored "-Watimport-in-framework-header"
 #endif
+@import AppKit;
 @import AudioToolbox;
+@import CoreAudioKit;
 #endif
 
 #endif
@@ -323,6 +325,21 @@ SWIFT_CLASS("_TtC11NIHPlugAUv311NIHPlugAUv3")
 @property (nonatomic, readonly, copy) AUInternalRenderBlock _Nonnull internalRenderBlock;
 /// Alternative registration method that might be needed for some systems
 + (void)registerAudioUnit;
+@end
+
+@class NSBundle;
+@class NSCoder;
+/// View controller for NIH-Plug AUv3 plugin UI.
+/// This provides the user interface for the Audio Unit extension.
+SWIFT_CLASS("_TtC11NIHPlugAUv325NIHPlugAUv3ViewController")
+@interface NIHPlugAUv3ViewController : AUViewController <AUAudioUnitFactory>
+- (void)loadView;
+- (void)viewDidLoad;
+/// Creates an instance of the audio unit.
+/// This is called by the system to instantiate the Audio Unit.
+- (AUAudioUnit * _Nullable)createAudioUnitWithComponentDescription:(AudioComponentDescription)componentDescription error:(NSError * _Nullable * _Nullable)error SWIFT_WARN_UNUSED_RESULT;
+- (nonnull instancetype)initWithNibName:(NSNibName _Nullable)nibNameOrNil bundle:(NSBundle * _Nullable)nibBundleOrNil OBJC_DESIGNATED_INITIALIZER;
+- (nullable instancetype)initWithCoder:(NSCoder * _Nonnull)coder OBJC_DESIGNATED_INITIALIZER;
 @end
 
 #endif

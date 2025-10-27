@@ -11,6 +11,7 @@
 		A1234567890123456789012C /* NIHPlugAUv3-Bridging-Header.h in Headers */ = {isa = PBXBuildFile; fileRef = A1234567890123456789012D /* NIHPlugAUv3-Bridging-Header.h */; };
 		A1234567890123456789012E /* libnih_plug_universal.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A1234567890123456789012F /* libnih_plug_universal.a */; };
 		A1234567890123456789013G /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890123456789013H /* main.swift */; };
+		A1234567890123456789016A /* NIHPlugAUv3ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890123456789015F /* NIHPlugAUv3ViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,6 +20,7 @@
 		A1234567890123456789012F /* libnih_plug_universal.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libnih_plug_universal.a; sourceTree = "<group>"; };
 		A1234567890123456789013A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1234567890123456789013B /* NIHPlugAUv3.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NIHPlugAUv3.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1234567890123456789015F /* NIHPlugAUv3ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NIHPlugAUv3ViewController.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,6 +39,7 @@
 			isa = PBXGroup;
 			children = (
 				A1234567890123456789012B /* AUAudioUnit.swift */,
+				A1234567890123456789015F /* NIHPlugAUv3ViewController.swift */,
 				A1234567890123456789012D /* NIHPlugAUv3-Bridging-Header.h */,
 				A1234567890123456789013A /* Info.plist */,
 				A1234567890123456789012F /* libnih_plug_universal.a */,
@@ -141,6 +144,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1234567890123456789012A /* AUAudioUnit.swift in Sources */,
+				A1234567890123456789016A /* NIHPlugAUv3ViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -274,7 +278,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = NIHPlugAUv3/NIHPlugAUv3.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -308,7 +312,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = NIHPlugAUv3/NIHPlugAUv3.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;

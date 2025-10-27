@@ -19,36 +19,41 @@
     <key>CFBundleShortVersionString</key>
     <string>1.0</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>3</string>
     <key>LSMinimumSystemVersion</key>
     <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
     <key>NSExtension</key>
     <dict>
-        <key>NSExtensionPointIdentifier</key>
-        <string>com.apple.AudioUnit</string>
-        <key>NSExtensionPrincipalClass</key>
-        <string>NIHPlugAUv3</string>
-    </dict>
-    <key>AudioComponents</key>
-    <array>
+        <key>NSExtensionAttributes</key>
         <dict>
-            <key>type</key>
-            <string>aufx</string>
-            <key>subtype</key>
-            <string>Nplg</string>
-            <key>manufacturer</key>
-            <string>NPLG</string>
-            <key>name</key>
-            <string>NIH-Plug AUv3</string>
-            <key>description</key>
-            <string>NIH-Plug Audio Unit v3 Plugin</string>
-            <key>version</key>
-            <integer>1</integer>
-            <key>sandboxSafe</key>
-            <true/>
-            <key>hasCustomView</key>
-            <true/>
+            <key>AudioComponents</key>
+            <array>
+                <dict>
+                    <key>type</key>
+                    <string>aufx</string>
+                    <key>subtype</key>
+                    <string>Nplg</string>
+                    <key>manufacturer</key>
+                    <string>NPLG</string>
+                    <key>name</key>
+                    <string>NPLG: NIH-Plug AUv3</string>
+                    <key>description</key>
+                    <string>NIH-Plug Audio Unit v3 Plugin</string>
+                    <key>version</key>
+                    <integer>3</integer>
+                    <key>sandboxSafe</key>
+                    <true/>
+                    <key>tags</key>
+                    <array>
+                        <string>Effects</string>
+                    </array>
+                </dict>
+            </array>
         </dict>
-    </array>
+        <key>NSExtensionPointIdentifier</key>
+        <string>com.apple.AudioUnit-UI</string>
+        <key>NSExtensionPrincipalClass</key>
+        <string>NIHPlugAUv3.NIHPlugAUv3ViewController</string>
+    </dict>
 </dict>
 </plist>

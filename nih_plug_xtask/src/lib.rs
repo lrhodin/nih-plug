@@ -607,13 +607,30 @@ fn bundle_plugin(
             
             // Create minimal host executable
             create_minimal_host_executable(&host_app_macos, &bundle_name)?;
-            
+
             // Generate host app Info.plist
             create_host_app_infoplist(package, &bundle_name, &host_app_contents)?;
-            
-            // Code sign both host and extension
-            maybe_codesign(&target_appex, compilation_target);
-            maybe_codesign(&host_app_path, compilation_target);
+
+            // Remove .swiftmodule directory from .appex before signing
+            // (it causes "bundle format unrecognized" errors during codesign)
+            let swiftmodule_dir = target_appex.join("Contents/NIHPlugAUv3.swiftmodule");
+            if swiftmodule_dir.exists() {
+                eprintln!("Removing .swiftmodule directory before signing: {}", swiftmodule_dir.display());
+                std::fs::remove_dir_all(&swiftmodule_dir)
+                    .context("Failed to remove .swiftmodule directory")?;
+            }
+
+            // Code sign both host and extension with entitlements
+            let entitlements_path = swift_dir.join("NIHPlugAUv3/NIHPlugAUv3.entitlements");
+            if entitlements_path.exists() {
+                eprintln!("Signing with entitlements: {}", entitlements_path.display());
+                maybe_codesign_with_entitlements(&target_appex, compilation_target, Some(&entitlements_path));
+                maybe_codesign_with_entitlements(&host_app_path, compilation_target, Some(&entitlements_path));
+            } else {
+                eprintln!("WARNING: Entitlements file not found at '{}'", entitlements_path.display());
+                maybe_codesign(&target_appex, compilation_target);
+                maybe_codesign(&host_app_path, compilation_target);
+            }
 
             eprintln!("Created an AUv3 host app bundle at '{}'", host_app_path.display());
             
@@ -1037,32 +1054,37 @@ pub fn generate_auv3_infoplist(
     <string>10.11</string>
     <key>NSExtension</key>
     <dict>
+        <key>NSExtensionAttributes</key>
+        <dict>
+            <key>AudioComponents</key>
+            <array>
+                <dict>
+                    <key>type</key>
+                    <string>{au_type_code}</string>
+                    <key>subtype</key>
+                    <string>{au_subtype_code}</string>
+                    <key>manufacturer</key>
+                    <string>{au_manufacturer_code}</string>
+                    <key>name</key>
+                    <string>{plugin_name}</string>
+                    <key>description</key>
+                    <string>{plugin_name} - {plugin_vendor}</string>
+                    <key>version</key>
+                    <integer>1</integer>
+                    <key>sandboxSafe</key>
+                    <true/>
+                    <key>hasCustomView</key>
+                    <true/>
+                </dict>
+            </array>
+            <key>NSExtensionServiceRoleType</key>
+            <string>NSExtensionServiceRoleTypeEditor</string>
+        </dict>
         <key>NSExtensionPointIdentifier</key>
         <string>com.apple.AudioUnit</string>
         <key>NSExtensionPrincipalClass</key>
         <string>NIHPlugAUv3</string>
     </dict>
-    <key>AudioComponents</key>
-    <array>
-        <dict>
-            <key>type</key>
-            <string>{au_type_code}</string>
-            <key>subtype</key>
-            <string>{au_subtype_code}</string>
-            <key>manufacturer</key>
-            <string>{au_manufacturer_code}</string>
-            <key>name</key>
-            <string>{plugin_name}</string>
-            <key>description</key>
-            <string>{plugin_name} - {plugin_vendor}</string>
-            <key>version</key>
-            <integer>1</integer>
-            <key>sandboxSafe</key>
-            <true/>
-            <key>hasCustomView</key>
-            <true/>
-        </dict>
-    </array>
 </dict>
 </plist>
 "#);
@@ -1082,6 +1104,11 @@ pub fn generate_auv3_infoplist(
 ///
 /// If the codesigning command could not be run then this merely prints a warning.
 pub fn maybe_codesign(bundle_home: &Path, target: CompilationTarget) {
+    maybe_codesign_with_entitlements(bundle_home, target, None)
+}
+
+/// Same as `maybe_codesign`, but allows specifying an entitlements file.
+pub fn maybe_codesign_with_entitlements(bundle_home: &Path, target: CompilationTarget, entitlements: Option<&Path>) {
     if !matches!(
         target,
         CompilationTarget::MacOS(_) | CompilationTarget::MacOSUniversal
@@ -1111,16 +1138,19 @@ pub fn maybe_codesign(bundle_home: &Path, target: CompilationTarget) {
                 .and_then(|s| s.to_str())
                 .unwrap_or("unknown")
         );
-        
+
         if binary_path.exists() {
-            let binary_success = Command::new("codesign")
-                .arg("-f")
+            let mut cmd = Command::new("codesign");
+            cmd.arg("-f")
                 .arg("-s")
-                .arg("-")
-                .arg(&binary_path)
-                .status()
-                .is_ok();
-            
+                .arg("-");
+
+            if let Some(entitlements_path) = entitlements {
+                cmd.arg("--entitlements").arg(entitlements_path);
+            }
+
+            let binary_success = cmd.arg(&binary_path).status().is_ok();
+
             if !binary_success {
                 eprintln!(
                     "WARNING: Could not self-sign binary '{}'",
@@ -1131,13 +1161,16 @@ pub fn maybe_codesign(bundle_home: &Path, target: CompilationTarget) {
     }
 
     // Sign the bundle itself
-    let success = Command::new("codesign")
-        .arg("-f")
+    let mut cmd = Command::new("codesign");
+    cmd.arg("-f")
         .arg("-s")
-        .arg("-")
-        .arg(bundle_home)
-        .status()
-        .is_ok();
+        .arg("-");
+
+    if let Some(entitlements_path) = entitlements {
+        cmd.arg("--entitlements").arg(entitlements_path);
+    }
+
+    let success = cmd.arg(bundle_home).status().is_ok();
     if !success {
         eprintln!(
             "WARNING: Could not self-sign '{}', it may fail to run depending on the environment",
@@ -1192,7 +1225,7 @@ NSApplicationMain(CommandLine.argc, CommandLine.unsafeArgv)
 }
 
 /// Create Info.plist for the AUv3 host app.
-/// This declares the NSExtension so macOS can discover the .appex inside.
+/// Host apps should NOT have NSExtension - only the .appex bundle should have it.
 fn create_host_app_infoplist(package: &str, display_name: &str, contents_dir: &Path) -> Result<()> {
     let host_executable_name = format!("{}Host", display_name);
     let info_plist_content = format!(r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -1221,11 +1254,6 @@ fn create_host_app_infoplist(package: &str, display_name: &str, contents_dir: &P
     <string>10.11</string>
     <key>NSHighResolutionCapable</key>
     <true/>
-    <key>NSExtension</key>
-    <dict>
-        <key>NSExtensionPointIdentifier</key>
-        <string>com.apple.AudioUnit</string>
-    </dict>
 </dict>
 </plist>
 "#);
