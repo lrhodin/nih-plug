@@ -1,7 +1,7 @@
 # Implementation Ralph - nih-plug
 
 
-**IMPORTANT: Read the handoff note at @handoffs/iteration_005.md first before starting.**
+**IMPORTANT: Read the handoff note at @handoffs/iteration_006.md first before starting.**
 
 ## Your Mission
 
@@ -161,7 +161,7 @@ When you believe the project is ~80% complete:
 - **Project Type:** Brownfield
 - **Build/Run Instructions:** See @AGENT.md
 - **Current Plan:** See @fix_plan.md
-- **Last Handoff:** @handoffs/iteration_000.md
+- **Last Handoff:** @handoffs/iteration_006.md
 
 ## Success Criteria
 
