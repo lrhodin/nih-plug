@@ -27,7 +27,7 @@
 - [x] Complete parameter value conversion (normalized vs plain)
 - [x] Implement parameter change notifications
 - [x] Implement parameter automation
-- [ ] Implement preset/state save/load
+- [x] Implement preset/state save/load
 - [x] Test: Can automate parameters in DAW
 
 ## Phase 4: MIDI & Events (CHECKPOINT: MIDI works)

@@ -75,6 +75,12 @@ pub mod property_ids {
     pub const K_AUDIO_UNIT_PROPERTY_MAXIMUM_FRAMES_PER_SLICE: u32 = 14;
     /// Latency property
     pub const K_AUDIO_UNIT_PROPERTY_LATENCY: u32 = 35;
+    /// Preset property - for loading/saving presets
+    pub const K_AUDIO_UNIT_PROPERTY_PRESET: u32 = 4;
+    /// Current preset property - for getting current preset info
+    pub const K_AUDIO_UNIT_PROPERTY_CURRENT_PRESET: u32 = 5;
+    /// Factory presets property - for getting available presets
+    pub const K_AUDIO_UNIT_PROPERTY_FACTORY_PRESETS: u32 = 6;
 }
 
 /// Audio Unit scope identifiers
@@ -253,3 +259,30 @@ pub mod render_flags {
 pub type AudioComponentFactoryFunction = unsafe extern "C" fn(
     desc: *const AudioComponentDescription,
 ) -> *mut c_void;
+
+/// Audio Unit preset data structure
+///
+/// This structure is used to represent a preset in the Audio Unit system.
+/// It contains the preset name and data (serialized state).
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct AUPreset {
+    /// The preset number (0-based index for factory presets, -1 for user presets)
+    pub preset_number: i32,
+    /// The preset name (null-terminated C string)
+    pub preset_name: *mut i8,
+}
+
+/// Audio Unit class info data structure
+///
+/// This structure contains information about the Audio Unit class.
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct AUClassInfo {
+    /// The class name (null-terminated C string)
+    pub class_name: *mut i8,
+    /// The class version
+    pub class_version: u32,
+    /// The class description (null-terminated C string)
+    pub class_description: *mut i8,
+}

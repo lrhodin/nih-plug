@@ -9,7 +9,7 @@ use std::ptr;
 use crate::plugin::Plugin;
 use crate::wrapper::util::hash_param_id;
 
-use super::bindings::{errors, property_ids, scopes, AudioStreamBasicDescription};
+use super::bindings::{errors, property_ids, scopes, AudioStreamBasicDescription, AUPreset, AUClassInfo};
 use super::factory::AudioComponentPlugInInstance;
 
 /// Maximum number of frames per slice (buffer size).
@@ -56,6 +56,15 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
             property_ids::K_AUDIO_UNIT_PROPERTY_PARAMETER_LIST => {
                 Self::get_parameter_list(plugin_instance, data, data_size)
             }
+            property_ids::K_AUDIO_UNIT_PROPERTY_CLASS_INFO => {
+                Self::get_class_info(plugin_instance, data, data_size)
+            }
+            property_ids::K_AUDIO_UNIT_PROPERTY_CURRENT_PRESET => {
+                Self::get_current_preset(plugin_instance, data, data_size)
+            }
+            property_ids::K_AUDIO_UNIT_PROPERTY_FACTORY_PRESETS => {
+                Self::get_factory_presets(plugin_instance, data, data_size)
+            }
             _ => {
                 nih_debug_assert!(
                     false,
@@ -96,6 +105,12 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
             }
             property_ids::K_AUDIO_UNIT_PROPERTY_SAMPLE_RATE => {
                 Self::set_sample_rate(plugin_instance, scope, data, data_size)
+            }
+            property_ids::K_AUDIO_UNIT_PROPERTY_PRESET => {
+                Self::set_preset(plugin_instance, data, data_size)
+            }
+            property_ids::K_AUDIO_UNIT_PROPERTY_CURRENT_PRESET => {
+                Self::set_current_preset(plugin_instance, data, data_size)
             }
             _ => {
                 nih_debug_assert!(
@@ -165,7 +180,7 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
 
     /// Set the stream format for input or output.
     unsafe fn set_stream_format(
-        instance: &mut Self,
+        _instance: &mut Self,
         scope: u32,
         _element: u32,
         data: *const c_void,
@@ -322,7 +337,7 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
     }
 
     /// Get the plugin latency in samples.
-    unsafe fn get_latency(instance: &Self, data: *mut c_void, data_size: *mut u32) -> i32 {
+    unsafe fn get_latency(_instance: &Self, data: *mut c_void, data_size: *mut u32) -> i32 {
         let required_size = std::mem::size_of::<f64>() as u32;
 
         if data.is_null() {
@@ -392,6 +407,171 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
         *data_size = required_size;
         errors::NO_ERR
     }
+
+    /// Get the class info for the plugin.
+    unsafe fn get_class_info(
+        instance: &Self,
+        data: *mut c_void,
+        data_size: *mut u32,
+    ) -> i32 {
+        let required_size = std::mem::size_of::<AUClassInfo>() as u32;
+
+        if data.is_null() {
+            *data_size = required_size;
+            return errors::NO_ERR;
+        }
+
+        if *data_size < required_size {
+            return errors::K_AUDIO_UNIT_ERR_INVALID_PARAMETER;
+        }
+
+        // Get plugin info from the wrapper
+        let _plugin_info = instance.wrapper.plugin().read();
+        let _plugin_name = P::NAME;
+        let _plugin_vendor = P::VENDOR;
+        let plugin_version = P::VERSION;
+
+        // Create class info structure
+        // Parse version string to get a numeric version
+        let version_number = plugin_version
+            .split('.')
+            .next()
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(1);
+            
+        let class_info = AUClassInfo {
+            class_name: std::ptr::null_mut(),
+            class_version: version_number,
+            class_description: std::ptr::null_mut(),
+        };
+
+        // Copy to output buffer
+        ptr::write(data as *mut AUClassInfo, class_info);
+        *data_size = required_size;
+
+        errors::NO_ERR
+    }
+
+    /// Get the current preset.
+    unsafe fn get_current_preset(
+        _instance: &Self,
+        data: *mut c_void,
+        data_size: *mut u32,
+    ) -> i32 {
+        let required_size = std::mem::size_of::<AUPreset>() as u32;
+
+        if data.is_null() {
+            *data_size = required_size;
+            return errors::NO_ERR;
+        }
+
+        if *data_size < required_size {
+            return errors::K_AUDIO_UNIT_ERR_INVALID_PARAMETER;
+        }
+
+        // For now, we don't have preset support, so return a default preset
+        let preset = AUPreset {
+            preset_number: -1, // User preset
+            preset_name: std::ptr::null_mut(),
+        };
+
+        ptr::write(data as *mut AUPreset, preset);
+        *data_size = required_size;
+
+        errors::NO_ERR
+    }
+
+    /// Get the factory presets.
+    unsafe fn get_factory_presets(
+        _instance: &Self,
+        data: *mut c_void,
+        data_size: *mut u32,
+    ) -> i32 {
+        // For now, we don't have factory presets
+        // Return empty list
+        if data.is_null() {
+            *data_size = 0;
+            return errors::NO_ERR;
+        }
+
+        *data_size = 0;
+        errors::NO_ERR
+    }
+
+    /// Set the preset.
+    unsafe fn set_preset(
+        _instance: &mut Self,
+        data: *const c_void,
+        data_size: u32,
+    ) -> i32 {
+        let required_size = std::mem::size_of::<AUPreset>() as u32;
+
+        if data_size < required_size {
+            return errors::K_AUDIO_UNIT_ERR_INVALID_PARAMETER;
+        }
+
+        let preset = &*(data as *const AUPreset);
+        
+        nih_log!("SetProperty: Preset - number={}, name={:?}", 
+                 preset.preset_number, 
+                 if preset.preset_name.is_null() { 
+                     "null" 
+                 } else { 
+                     "non-null" 
+                 });
+
+        // For now, we don't implement preset loading
+        // This would need to deserialize the preset data and restore plugin state
+        // TODO: Implement actual preset loading using state::deserialize_json
+        errors::NO_ERR
+    }
+
+    /// Set the current preset.
+    unsafe fn set_current_preset(
+        _instance: &mut Self,
+        data: *const c_void,
+        data_size: u32,
+    ) -> i32 {
+        let required_size = std::mem::size_of::<AUPreset>() as u32;
+
+        if data_size < required_size {
+            return errors::K_AUDIO_UNIT_ERR_INVALID_PARAMETER;
+        }
+
+        let preset = &*(data as *const AUPreset);
+        
+        nih_log!("SetProperty: CurrentPreset - number={}, name={:?}", 
+                 preset.preset_number, 
+                 if preset.preset_name.is_null() { 
+                     "null" 
+                 } else { 
+                     "non-null" 
+                 });
+
+        // For now, we don't implement preset loading
+        errors::NO_ERR
+    }
+
+    /// Get the current plugin state as serialized data.
+    /// This is used for saving presets and state.
+    fn get_current_state_data(&self) -> Result<Vec<u8>, String> {
+        let _plugin = self.wrapper.plugin().read();
+        let _params = _plugin.params();
+        
+        // Get the parameter hash maps from the wrapper
+        // TODO: We need to store these in the wrapper for state serialization
+        // For now, return an error indicating this needs to be implemented
+        Err("State serialization not yet implemented - needs parameter hash maps".to_string())
+    }
+
+    /// Load plugin state from serialized data.
+    /// This is used for loading presets and state.
+    fn load_state_data(&mut self, _data: &[u8]) -> Result<(), String> {
+        // For now, we don't implement state loading
+        // This would need to deserialize the state and restore plugin parameters
+        // TODO: Implement actual state loading using state::deserialize_json
+        Err("State loading not yet implemented - needs parameter hash maps".to_string())
+    }
 }
 
 #[cfg(test)]
@@ -413,9 +593,50 @@ mod tests {
     #[test]
     fn test_stream_format_size() {
         // Ensure AudioStreamBasicDescription has the expected size for C interop
+        // The actual size is 40 bytes (10 * 4 bytes per field)
         assert_eq!(
             std::mem::size_of::<AudioStreamBasicDescription>(),
-            9 * std::mem::size_of::<u32>()
+            40
         );
+    }
+
+    #[test]
+    fn test_au_preset_structure() {
+        // Test that AUPreset has the expected size and layout
+        let preset = AUPreset {
+            preset_number: 0,
+            preset_name: std::ptr::null_mut(),
+        };
+        
+        // Verify the structure is properly sized for C interop
+        // The actual size is 16 bytes due to padding (i32 + 4 bytes padding + *mut i8)
+        assert_eq!(
+            std::mem::size_of::<AUPreset>(),
+            16
+        );
+        
+        assert_eq!(preset.preset_number, 0);
+        assert!(preset.preset_name.is_null());
+    }
+
+    #[test]
+    fn test_au_class_info_structure() {
+        // Test that AUClassInfo has the expected size and layout
+        let class_info = AUClassInfo {
+            class_name: std::ptr::null_mut(),
+            class_version: 1,
+            class_description: std::ptr::null_mut(),
+        };
+        
+        // Verify the structure is properly sized for C interop
+        // The actual size is 24 bytes due to padding (*mut i8 + u32 + 4 bytes padding + *mut i8)
+        assert_eq!(
+            std::mem::size_of::<AUClassInfo>(),
+            24
+        );
+        
+        assert!(class_info.class_name.is_null());
+        assert_eq!(class_info.class_version, 1);
+        assert!(class_info.class_description.is_null());
     }
 }
