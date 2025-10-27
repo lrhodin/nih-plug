@@ -9,6 +9,7 @@ mod util;
 pub mod bindings;
 mod context;
 pub mod factory;
+pub mod selectors;
 mod wrapper;
 
 /// Re-export for the macro

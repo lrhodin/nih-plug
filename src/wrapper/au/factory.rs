@@ -70,10 +70,63 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
     }
 
     /// The Lookup callback - returns function pointers for various selectors
-    unsafe extern "C" fn lookup(_selector: i16) -> *const c_void {
-        // TODO: Implement selector lookup for AU methods
-        // Different selectors map to different plugin methods (initialize, process, etc.)
-        std::ptr::null()
+    unsafe extern "C" fn lookup(selector: i16) -> *const c_void {
+        use super::selectors::AudioUnitSelector;
+
+        let selector_enum = match AudioUnitSelector::from_i16(selector) {
+            Some(s) => s,
+            None => {
+                nih_log!("AU lookup called with unknown selector: 0x{:04x}", selector);
+                return std::ptr::null();
+            }
+        };
+
+        nih_debug_assert!(
+            selector_enum.is_required_for_effect(),
+            "AU lookup called for optional selector: {}",
+            selector_enum.name()
+        );
+
+        // Return function pointers for each selector
+        // These functions will be implemented in future commits
+        match selector_enum {
+            AudioUnitSelector::Initialize => {
+                // TODO: Return pointer to initialize function
+                std::ptr::null()
+            }
+            AudioUnitSelector::Uninitialize => {
+                // TODO: Return pointer to uninitialize function
+                std::ptr::null()
+            }
+            AudioUnitSelector::GetProperty => {
+                // TODO: Return pointer to get_property function
+                std::ptr::null()
+            }
+            AudioUnitSelector::SetProperty => {
+                // TODO: Return pointer to set_property function
+                std::ptr::null()
+            }
+            AudioUnitSelector::GetParameter => {
+                // TODO: Return pointer to get_parameter function
+                std::ptr::null()
+            }
+            AudioUnitSelector::SetParameter => {
+                // TODO: Return pointer to set_parameter function
+                std::ptr::null()
+            }
+            AudioUnitSelector::Render => {
+                // TODO: Return pointer to render function
+                std::ptr::null()
+            }
+            AudioUnitSelector::Reset => {
+                // TODO: Return pointer to reset function
+                std::ptr::null()
+            }
+            _ => {
+                nih_log!("AU lookup: selector {} not yet implemented", selector_enum.name());
+                std::ptr::null()
+            }
+        }
     }
 }
 

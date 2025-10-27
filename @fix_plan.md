@@ -12,8 +12,9 @@
 - [x] Implement AU component factory structure
 - [x] Create AudioComponentPlugInInstance and interface
 - [x] Document bundle structure and Info.plist requirements
-- [ ] Implement AU callback dispatching (Open, Close, Lookup)
-- [ ] Implement Initialize/Uninitialize
+- [x] Define AU selectors and create selector dispatch system
+- [x] Implement lookup callback with selector routing
+- [ ] Implement Initialize/Uninitialize callbacks
 - [ ] Implement GetProperty/SetProperty for basic properties
 - [ ] Implement audio rendering (Render callback)
 - [ ] Implement buffer handling for AU format
