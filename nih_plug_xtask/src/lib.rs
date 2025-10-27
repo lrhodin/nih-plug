@@ -597,7 +597,7 @@ fn bundle_plugin(
             "https://github.com/robbert-vdh/nih-plug", // plugin_url
             "info@example.com", // plugin_email
             0x61756D75,        // au_type: 'aumu' (Audio Unit Music Effect)
-            0x6E706C67,        // au_subtype: 'nplg' (NIH-Plug identifier)
+            0x4E706C67,        // au_subtype: 'Nplg' (NIH-Plug identifier - mixed case)
             0x4E504C47,        // au_manufacturer: 'NPLG' (NIH-Plug manufacturer)
         )?;
 
@@ -1031,6 +1031,20 @@ pub fn maybe_codesign(bundle_home: &Path, target: CompilationTarget) {
     ) {
         return;
     }
+
+    // Clean extended attributes that might prevent signing
+    let _ = Command::new("xattr")
+        .arg("-cr")
+        .arg(bundle_home)
+        .status();
+
+    // Remove .DS_Store files
+    let _ = Command::new("find")
+        .arg(bundle_home)
+        .arg("-name")
+        .arg(".DS_Store")
+        .arg("-delete")
+        .status();
 
     let success = Command::new("codesign")
         .arg("-f")

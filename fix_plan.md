@@ -104,10 +104,12 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 
 **BEFORE requesting human DAW testing, validate plugins with pluginval**
 
-- [ ] Download and install pluginval for macOS
-- [ ] Build test AUv3 plugin (e.g., gain example with AUv3 export)
-- [ ] Run pluginval in headless mode at strictness level 5
-- [ ] Fix any validation failures (crashes, NaN values, state issues)
+- [x] Download and install pluginval for macOS
+- [x] Build test AUv3 plugin (e.g., gain example with AUv3 export)
+- [x] Run pluginval in headless mode at strictness level 5
+- [ ] Fix Audio Unit interface implementation issues (plugin not recognized by system)
+- [ ] Fix code signing issues preventing proper testing
+- [ ] Fix Audio Unit registration and recognition
 - [ ] Document validation results in handoff
 - [ ] **CHECKPOINT: Plugin passes pluginval strictness level 5**
 

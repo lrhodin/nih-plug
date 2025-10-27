@@ -38,10 +38,13 @@ import AudioToolbox
         try super.init(audioComponentDescription: audioComponentDescription)
         
         // Initialize the plugin handle
+        print("NIHPlugAUv3: Creating plugin instance...")
         pluginHandle = plugin_create()
         if pluginHandle == nil {
+            print("NIHPlugAUv3: Failed to create plugin instance")
             throw NSError(domain: "NIHPlugAUv3", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create plugin instance"])
         }
+        print("NIHPlugAUv3: Plugin instance created successfully")
         
         // Set up audio unit properties
         setupAudioUnit()
