@@ -76,10 +76,14 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 ## Phase 6: State Management (CHECKPOINT: State persists)
 
 - [ ] Implement fullState property for state save/load
-- [ ] Serialize NIH-plug state via FFI
-- [ ] Deserialize and restore state
+- [x] Serialize NIH-plug state via FFI
+- [x] Deserialize and restore state
 - [ ] Handle preset management
 - [ ] **CHECKPOINT: Plugin state saves and loads in DAW**
+
+### Subtasks for fullState property:
+- [ ] Implement Swift fullState property getter that calls FFI serialization
+- [ ] Implement Swift fullState property setter that calls FFI deserialization
 
 ## Phase 7: Build Automation (CHECKPOINT: Can build from command line)
 

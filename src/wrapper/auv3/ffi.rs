@@ -9,14 +9,18 @@
 use std::ffi::CString;
 use std::os::raw::{c_float, c_int, c_uint, c_void};
 use std::sync::Arc;
+use std::collections::HashMap;
 
 use crate::prelude::{
     AudioIOLayout, BufferConfig, Params, Plugin, ProcessContext, ProcessStatus,
     FloatParam, FloatRange, SmoothingStyle, MidiConfig, AuxiliaryBuffers, Buffer,
-    util, formatters, Transport
+    util, formatters, Transport, ParamPtr
 };
 use crate::audio_setup::ProcessMode;
 use crate::params::Param;
+use crate::wrapper::state;
+use crate::wrapper::util::hash_param_id;
+use crate::debug::nih_debug_assert_failure;
 use std::num::NonZeroU32;
 
 /// Error codes for FFI operations.
@@ -84,6 +88,10 @@ pub struct PluginWrapper {
     plugin: TestGainPlugin,
     /// The plugin's parameters.
     params: Arc<dyn Params>,
+    /// Parameter hash maps for state serialization.
+    param_by_hash: HashMap<u32, ParamPtr>,
+    /// Parameter ID to hash mapping for state serialization.
+    param_id_to_hash: HashMap<String, u32>,
     /// The current buffer configuration.
     buffer_config: Option<BufferConfig>,
     /// The current audio I/O layout.
@@ -95,9 +103,31 @@ pub struct PluginWrapper {
 impl PluginWrapper {
     /// Create a new plugin wrapper.
     pub fn new(plugin: TestGainPlugin, params: Arc<dyn Params>) -> Self {
+        // Create parameter hash maps for state serialization
+        let param_id_hashes_ptrs: Vec<_> = params
+            .param_map()
+            .into_iter()
+            .map(|(id, ptr, _)| {
+                let hash = hash_param_id(&id);
+                (id, hash, ptr)
+            })
+            .collect();
+        
+        let param_by_hash = param_id_hashes_ptrs
+            .iter()
+            .map(|(_, hash, ptr)| (*hash, *ptr))
+            .collect();
+        
+        let param_id_to_hash = param_id_hashes_ptrs
+            .iter()
+            .map(|(id, hash, _)| (id.clone(), *hash))
+            .collect();
+
         Self {
             plugin,
             params,
+            param_by_hash,
+            param_id_to_hash,
             buffer_config: None,
             audio_io_layout: None,
             initialized: false,
@@ -223,16 +253,47 @@ impl PluginWrapper {
 
     /// Save plugin state to a byte array.
     pub fn save_state(&self) -> Result<Vec<u8>, FFIError> {
-        // For now, return empty state
-        // In a full implementation, this would serialize the plugin state
-        Ok(Vec::new())
+        // Serialize the plugin state using NIH-plug's state system
+        unsafe {
+            match state::serialize_json::<TestGainPlugin>(
+                self.params.clone(),
+                state::make_params_iter(&self.param_by_hash, &self.param_id_to_hash),
+            ) {
+                Ok(serialized) => Ok(serialized),
+                Err(err) => {
+                    nih_debug_assert_failure!("Failed to serialize plugin state: {}", err);
+                    Err(FFIError::StateError)
+                }
+            }
+        }
     }
 
     /// Load plugin state from a byte array.
-    pub fn load_state(&mut self, _state_data: &[u8]) -> Result<(), FFIError> {
-        // For now, do nothing
-        // In a full implementation, this would deserialize the plugin state
-        Ok(())
+    pub fn load_state(&mut self, state_data: &[u8]) -> Result<(), FFIError> {
+        // Deserialize the plugin state using NIH-plug's state system
+        unsafe {
+            match state::deserialize_json(state_data) {
+                Some(mut plugin_state) => {
+                    let success = state::deserialize_object::<TestGainPlugin>(
+                        &mut plugin_state,
+                        self.params.clone(),
+                        state::make_params_getter(&self.param_by_hash, &self.param_id_to_hash),
+                        self.buffer_config.as_ref(),
+                    );
+                    
+                    if success {
+                        Ok(())
+                    } else {
+                        nih_debug_assert_failure!("Failed to deserialize plugin state");
+                        Err(FFIError::StateError)
+                    }
+                }
+                None => {
+                    nih_debug_assert_failure!("Failed to parse plugin state JSON");
+                    Err(FFIError::StateError)
+                }
+            }
+        }
     }
 }
 
@@ -806,6 +867,155 @@ mod tests {
             // Clean up
             let destroy_result = plugin_destroy(handle);
             assert_eq!(destroy_result, 0, "Plugin destruction should succeed");
+        }
+    }
+
+    #[test]
+    fn test_state_serialization() {
+        unsafe {
+            // Create a plugin instance
+            let handle = plugin_create();
+            assert!(!handle.is_null(), "Plugin creation should succeed");
+
+            // Initialize the plugin
+            let init_result = plugin_initialize(handle, 44100.0, 512, 2, 2);
+            assert_eq!(init_result, 0, "Plugin initialization should succeed");
+
+            // Test state serialization
+            let mut state_data: *mut u8 = std::ptr::null_mut();
+            let mut state_size: u32 = 0;
+            
+            let save_result = plugin_save_state(handle, &mut state_data, &mut state_size);
+            assert_eq!(save_result, 0, "State serialization should succeed");
+            assert!(!state_data.is_null(), "State data pointer should not be null");
+            assert!(state_size > 0, "State size should be greater than 0");
+
+            // Verify the state data contains valid JSON
+            let state_slice = std::slice::from_raw_parts(state_data, state_size as usize);
+            let state_str = std::str::from_utf8(state_slice).expect("State should be valid UTF-8");
+            
+            // The state should contain the plugin version and parameters
+            assert!(state_str.contains("\"version\""), "State should contain version field");
+            assert!(state_str.contains("\"params\""), "State should contain params field");
+            assert!(state_str.contains("\"gain\""), "State should contain gain parameter");
+
+            // Clean up state data
+            plugin_free(state_data as *mut c_void);
+
+            // Clean up plugin
+            let destroy_result = plugin_destroy(handle);
+            assert_eq!(destroy_result, 0, "Plugin destruction should succeed");
+        }
+    }
+
+    #[test]
+    fn test_state_deserialization() {
+        unsafe {
+            // Create a plugin instance
+            let handle = plugin_create();
+            assert!(!handle.is_null(), "Plugin creation should succeed");
+
+            // Initialize the plugin
+            let init_result = plugin_initialize(handle, 44100.0, 512, 2, 2);
+            assert_eq!(init_result, 0, "Plugin initialization should succeed");
+
+            // Get initial parameter value
+            let mut initial_value: f32 = 0.0;
+            let get_result = plugin_get_parameter(handle, 0, &mut initial_value);
+            assert_eq!(get_result, 0, "Initial parameter get should succeed");
+
+            // Change parameter value
+            let new_value = 0.8;
+            let set_result = plugin_set_parameter(handle, 0, new_value);
+            assert_eq!(set_result, 0, "Parameter set should succeed");
+
+            // Verify parameter was set
+            let mut current_value: f32 = 0.0;
+            let get_result2 = plugin_get_parameter(handle, 0, &mut current_value);
+            assert_eq!(get_result2, 0, "Parameter get after set should succeed");
+            assert!((current_value - new_value).abs() < 0.001, "Parameter value should match set value");
+
+            // Save state
+            let mut state_data: *mut u8 = std::ptr::null_mut();
+            let mut state_size: u32 = 0;
+            
+            let save_result = plugin_save_state(handle, &mut state_data, &mut state_size);
+            assert_eq!(save_result, 0, "State serialization should succeed");
+
+            // Change parameter to a different value
+            let different_value = 0.3;
+            let set_result2 = plugin_set_parameter(handle, 0, different_value);
+            assert_eq!(set_result2, 0, "Second parameter set should succeed");
+
+            // Load the saved state
+            let load_result = plugin_load_state(handle, state_data, state_size);
+            assert_eq!(load_result, 0, "State deserialization should succeed");
+
+            // Verify parameter was restored
+            let mut restored_value: f32 = 0.0;
+            let get_result3 = plugin_get_parameter(handle, 0, &mut restored_value);
+            assert_eq!(get_result3, 0, "Parameter get after load should succeed");
+            assert!((restored_value - new_value).abs() < 0.001, "Parameter should be restored to saved value");
+
+            // Clean up state data
+            plugin_free(state_data as *mut c_void);
+
+            // Clean up plugin
+            let destroy_result = plugin_destroy(handle);
+            assert_eq!(destroy_result, 0, "Plugin destruction should succeed");
+        }
+    }
+
+    #[test]
+    fn test_state_roundtrip() {
+        unsafe {
+            // Create a plugin instance
+            let handle = plugin_create();
+            assert!(!handle.is_null(), "Plugin creation should succeed");
+
+            // Initialize the plugin
+            let init_result = plugin_initialize(handle, 44100.0, 512, 2, 2);
+            assert_eq!(init_result, 0, "Plugin initialization should succeed");
+
+            // Set a specific parameter value
+            let test_value = 0.75;
+            let set_result = plugin_set_parameter(handle, 0, test_value);
+            assert_eq!(set_result, 0, "Parameter set should succeed");
+
+            // Save state
+            let mut state_data: *mut u8 = std::ptr::null_mut();
+            let mut state_size: u32 = 0;
+            
+            let save_result = plugin_save_state(handle, &mut state_data, &mut state_size);
+            assert_eq!(save_result, 0, "State serialization should succeed");
+
+            // Create a new plugin instance
+            let handle2 = plugin_create();
+            assert!(!handle2.is_null(), "Second plugin creation should succeed");
+
+            // Initialize the second plugin
+            let init_result2 = plugin_initialize(handle2, 44100.0, 512, 2, 2);
+            assert_eq!(init_result2, 0, "Second plugin initialization should succeed");
+
+            // Load state into the second plugin
+            let load_result = plugin_load_state(handle2, state_data, state_size);
+            assert_eq!(load_result, 0, "State deserialization should succeed");
+
+            // Verify the second plugin has the same parameter value
+            let mut loaded_value: f32 = 0.0;
+            let get_result = plugin_get_parameter(handle2, 0, &mut loaded_value);
+            assert_eq!(get_result, 0, "Parameter get after load should succeed");
+            assert!((loaded_value - test_value).abs() < 0.001, "Loaded parameter should match saved value");
+
+            // Clean up state data
+            plugin_free(state_data as *mut c_void);
+
+            // Clean up plugins
+            let destroy_result1 = plugin_destroy(handle);
+            assert_eq!(destroy_result1, 0, "First plugin destruction should succeed");
+            
+            let destroy_result2 = plugin_destroy(handle2);
+            assert_eq!(destroy_result2, 0, "Second plugin destruction should succeed");
         }
     }
 }
