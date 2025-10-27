@@ -1267,6 +1267,62 @@ fn embed_swift_runtime_libraries(appex_path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Copy Swift module files to the .appex bundle.
+/// This function:
+/// 1. Finds the Swift module files in the build directory
+/// 2. Creates the Swift module directory in the .appex bundle
+/// 3. Copies all Swift module files (.swiftmodule and .swiftdoc) to the bundle
+fn copy_swift_module_files(appex_path: &Path) -> Result<()> {
+    let swift_dir = Path::new("src/wrapper/auv3/swift");
+    let build_dir = swift_dir.join("build/Debug");
+    
+    // Find the Swift module directory in the build output
+    let swift_module_dir = build_dir.join("NIHPlugAUv3.swiftmodule");
+    if !swift_module_dir.exists() {
+        anyhow::bail!(
+            "Swift module directory not found at '{}'. Make sure the Xcode build completed successfully.",
+            swift_module_dir.display()
+        );
+    }
+    
+    // Create the Swift module directory in the .appex bundle
+    let target_module_dir = appex_path.join("Contents/NIHPlugAUv3.swiftmodule");
+    if target_module_dir.exists() {
+        // Remove existing module directory to ensure clean copy
+        std::fs::remove_dir_all(&target_module_dir)
+            .context("Could not remove existing Swift module directory")?;
+    }
+    
+    // Copy the entire Swift module directory
+    std::process::Command::new("cp")
+        .arg("-R")
+        .arg(&swift_module_dir)
+        .arg(target_module_dir.parent().unwrap())
+        .status()
+        .context("Failed to copy Swift module directory")?;
+    
+    // Verify the copy was successful
+    if !target_module_dir.exists() {
+        anyhow::bail!("Failed to copy Swift module directory to .appex bundle");
+    }
+    
+    // List the copied files for verification
+    let mut entries = std::fs::read_dir(&target_module_dir)
+        .context("Could not read Swift module directory")?;
+    
+    eprintln!("  Copied Swift module files:");
+    while let Some(entry) = entries.next() {
+        let entry = entry.context("Could not read directory entry")?;
+        let file_name = entry.file_name();
+        if let Some(name) = file_name.to_str() {
+            eprintln!("    {}", name);
+        }
+    }
+    
+    eprintln!("✅ Swift module files copied successfully");
+    Ok(())
+}
+
 /// Build the AUv3 Swift app extension using Xcode.
 /// This function:
 /// 1. Runs the build_rust.sh script to prepare the Swift project
@@ -1344,8 +1400,12 @@ fn xcode_build_auv3(package: &str) -> Result<()> {
         );
     }
 
-    // Step 4: Embed Swift runtime libraries in the .appex bundle
-    eprintln!("Step 4: Embedding Swift runtime libraries...");
+    // Step 4: Copy Swift module files to the .appex bundle
+    eprintln!("Step 4: Copying Swift module files...");
+    copy_swift_module_files(&appex_path)?;
+
+    // Step 5: Embed Swift runtime libraries in the .appex bundle
+    eprintln!("Step 5: Embedding Swift runtime libraries...");
     embed_swift_runtime_libraries(&appex_path)?;
 
     eprintln!("✅ Successfully built AUv3 app extension at '{}'", appex_path.display());

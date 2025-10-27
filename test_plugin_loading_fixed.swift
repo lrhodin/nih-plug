@@ -2,63 +2,84 @@
 
 import Foundation
 import AudioToolbox
-import AVFoundation
 
-// Test programmatic loading of the NIH-Plug AUv3 plugin
-print("Testing NIH-Plug AUv3 plugin loading...")
+// Test if the NIHPlugAUv3 plugin can be found and loaded
+print("Testing NIHPlugAUv3 plugin loading...")
 
-// Create AudioComponentDescription for our plugin
-var desc = AudioComponentDescription(
-    componentType: 0x61756678,  // aufx (Audio Unit Effect)
-    componentSubType: 0x4E706C67,  // Nplg (NIH-Plug)
-    componentManufacturer: 0x4E504C47,  // NPLG (NIH-Plug)
-    componentFlags: 0,
-    componentFlagsMask: 0
-)
+// Search for Audio Units with our plugin's identifiers
+var componentDescription = AudioComponentDescription()
+componentDescription.componentType = OSType("aufx".fourCharCode)
+componentDescription.componentSubType = OSType("Nplg".fourCharCode)
+componentDescription.componentManufacturer = OSType("NPLG".fourCharCode)
+componentDescription.componentFlags = 0
+componentDescription.componentFlagsMask = 0
 
-print("Looking for Audio Unit with description:")
-print("  Type: 0x\(String(desc.componentType, radix: 16)) (aufx)")
-print("  Subtype: 0x\(String(desc.componentSubType, radix: 16)) (Nplg)")
-print("  Manufacturer: 0x\(String(desc.componentManufacturer, radix: 16)) (NPLG)")
+print("Searching for Audio Unit with:")
+print("  Type: aufx (\(componentDescription.componentType))")
+print("  Subtype: Nplg (\(componentDescription.componentSubType))")
+print("  Manufacturer: NPLG (\(componentDescription.componentManufacturer))")
 
-// Try to find the component
-let component = AudioComponentFindNext(nil, &desc)
+var component: AudioComponent? = nil
+component = AudioComponentFindNext(component, &componentDescription)
 
 if let foundComponent = component {
-    print("✅ Found Audio Unit component!")
-
-    // Try to instantiate it
-    var audioUnit: AudioUnit? = nil
-    let instantiateStatus = AudioComponentInstanceNew(foundComponent, &audioUnit)
-
-    if instantiateStatus == noErr, let unit = audioUnit {
-        print("✅ Successfully instantiated Audio Unit!")
-
-        // Clean up
-        AudioComponentInstanceDispose(unit)
+    print("✅ Plugin found!")
+    
+    // Try to get component info
+    var componentInfo = AudioComponentDescription()
+    let status = AudioComponentGetDescription(foundComponent, &componentInfo)
+    
+    if status == noErr {
+        print("✅ Component description retrieved successfully")
+        print("  Type: \(componentInfo.componentType)")
+        print("  Subtype: \(componentInfo.componentSubType)")
+        print("  Manufacturer: \(componentInfo.componentManufacturer)")
     } else {
-        print("❌ Failed to instantiate Audio Unit: \(instantiateStatus)")
+        print("❌ Failed to get component description: \(status)")
     }
+    
+    // Try to get component name
+    var componentName: Unmanaged<CFString>? = nil
+    let nameStatus = AudioComponentCopyName(foundComponent, &componentName)
+    
+    if nameStatus == noErr, let name = componentName?.takeRetainedValue() {
+        print("✅ Component name: \(name)")
+    } else {
+        print("❌ Failed to get component name: \(nameStatus)")
+    }
+    
 } else {
-    print("❌ Failed to find Audio Unit component")
-
-    // List all available Audio Units to see what's registered
-    print("\nAvailable Audio Units (aufx type):")
-    var searchDesc = AudioComponentDescription()
-    searchDesc.componentType = 0x61756678  // aufx
-    searchDesc.componentSubType = 0
-    searchDesc.componentManufacturer = 0
-    searchDesc.componentFlags = 0
-    searchDesc.componentFlagsMask = 0
-
-    var currentComponent = AudioComponentFindNext(nil, &searchDesc)
+    print("❌ Plugin not found!")
+    
+    // List all available Audio Units to help debug
+    print("\nAvailable Audio Units:")
+    var searchComponent: AudioComponent? = nil
     var count = 0
-    while let comp = currentComponent {
-        var compDesc = AudioComponentDescription()
-        AudioComponentGetDescription(comp, &compDesc)
-        print("  Found: Type=0x\(String(compDesc.componentType, radix: 16)), Subtype=0x\(String(compDesc.componentSubType, radix: 16)), Manufacturer=0x\(String(compDesc.componentManufacturer, radix: 16))")
-        count += 1
-        currentComponent = AudioComponentFindNext(comp, &searchDesc)
+    var emptyDescription = AudioComponentDescription()
+    while let foundComponent = AudioComponentFindNext(searchComponent, &emptyDescription) {
+        var componentInfo = AudioComponentDescription()
+        let status = AudioComponentGetDescription(foundComponent, &componentInfo)
+        
+        if status == noErr {
+            let typeString = String(bytes: withUnsafeBytes(of: &componentInfo.componentType) { Data($0) }, encoding: .ascii) ?? "????"
+            let subtypeString = String(bytes: withUnsafeBytes(of: &componentInfo.componentSubType) { Data($0) }, encoding: .ascii) ?? "????"
+            let manufacturerString = String(bytes: withUnsafeBytes(of: &componentInfo.componentManufacturer) { Data($0) }, encoding: .ascii) ?? "????"
+            
+            print("  \(typeString) - \(subtypeString) - \(manufacturerString)")
+            count += 1
+            if count > 20 { // Limit output
+                print("  ... (showing first 20)")
+                break
+            }
+        }
+        searchComponent = foundComponent
     }
-    print("Total aufx plugins found: \(count)")
+}
+
+// Extension to convert string to FourCharCode
+extension String {
+    var fourCharCode: UInt32 {
+        let chars = Array(self.utf8)
+        return UInt32(chars[0]) << 24 | UInt32(chars[1]) << 16 | UInt32(chars[2]) << 8 | UInt32(chars[3])
+    }
 }
