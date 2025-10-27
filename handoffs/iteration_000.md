@@ -15,4 +15,4 @@ This is a fresh start. All files are in place.
 
 ## Next Focus
 
-Read @fix_plan.md and start with the highest priority task.
+Read fix_plan.md and start with the highest priority task.

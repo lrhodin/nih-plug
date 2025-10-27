@@ -14,13 +14,13 @@ Run autonomous development iterations until the project is complete. For each it
 ## Setup
 
 Read these files to understand the current state:
-- `./@fix_plan.md` - Current task list
-- `./@specs/overview.md` - Project specifications
-- `./@handoffs/` - Previous iteration notes
+- `./fix_plan.md` - Current task list
+- `./specs/overview.md` - Project specifications
+- `./handoffs/` - Previous iteration notes
 - `./.ralph/config.json` - Configuration
 - `./.ralph/current_iteration.txt` - Current iteration number
 
-**IMPORTANT:** All paths starting with `@` must be prefixed with `./` when using Read tool (e.g., Read("./@fix_plan.md"))
+**IMPORTANT:** Use `./` prefix when reading files (e.g., Read("./fix_plan.md"))
 
 ## Iteration Loop
 
@@ -30,7 +30,7 @@ For each iteration, follow this process:
 - Read ./.ralph/current_iteration.txt to get current iteration number
 - Increment iteration number
 - Update ./.ralph/current_iteration.txt with new number
-- Read the latest handoff from ./@handoffs/ directory
+- Read the latest handoff from ./handoffs/ directory
 
 ### Step 2: Check Tool Configuration
 - Read ./.ralph/config.json
@@ -39,11 +39,11 @@ For each iteration, follow this process:
 
 ### Step 2.5: Generate Implementation Prompt
 - Read ./PROMPT.md as the base template
-- Read ./@specs/overview.md for project context
+- Read ./specs/overview.md for project context
 - Create the full implementation prompt that includes:
   - The base PROMPT.md content
   - Reference to the latest handoff file
-  - Explicit instruction to create @handoffs/iteration_NNN.md when done
+  - Explicit instruction to create handoffs/iteration_NNN.md when done
   - Current iteration number (NNN)
 
 ### Step 3: Spawn Implementation Agent
@@ -92,7 +92,7 @@ Launch cursor-agent in headless mode to implement one complete task, then verify
 
 3. **Monitor Completion**
    After Cursor finishes, verify:
-   - Check if @handoffs/iteration_NNN.md was created
+   - Check if handoffs/iteration_NNN.md was created
    - Check if git commit was made (git log -1)
    - If both exist: SUCCESS
    - If missing or timeout occurred: Report timeout or failure
@@ -110,7 +110,7 @@ Launch cursor-agent in headless mode to implement one complete task, then verify
 ---
 
 ## Expected Outputs
-- File: @handoffs/iteration_NNN.md (with confidence score)
+- File: handoffs/iteration_NNN.md (with confidence score)
 - Git commit with iteration NNN changes
 
 ## Notes
@@ -123,14 +123,14 @@ Launch Cursor now and monitor until completion.
 ```
 
 The prompt should instruct the implementation agent (Claude or Cursor) to:
-- Read ./@fix_plan.md and choose the most important task
+- Read ./fix_plan.md and choose the most important task
 - Search codebase before implementing
 - Implement ONE thing completely (no placeholders)
 - Write tests that explain WHY
 - Run tests and ensure they pass
-- Update ./@fix_plan.md (mark done, add new tasks)
+- Update ./fix_plan.md (mark done, add new tasks)
 - Git commit with descriptive message
-- Create handoff at @handoffs/iteration_NNN.md with:
+- Create handoff at handoffs/iteration_NNN.md with:
   - Confidence Score (0-100)
   - Health Check (tests passing, known issues)
   - Key Learnings
@@ -150,10 +150,10 @@ The Task tool will block until the agent completes.
 - Launcher verifies handoff was created
 - Returns success/failure status
 
-Both paths should result in the same outcome: a handoff file at @handoffs/iteration_NNN.md
+Both paths should result in the same outcome: a handoff file at handoffs/iteration_NNN.md
 
 ### Step 5: Parse Results
-- Read ./@handoffs/iteration_NNN.md
+- Read ./handoffs/iteration_NNN.md
 - Extract confidence score
 - Check if tests are passing
 - Note any issues
@@ -163,7 +163,7 @@ Both paths should result in the same outcome: a handoff file at @handoffs/iterat
   - Log rollback warning
   - Run: git reset --hard HEAD~1
   - Decrement iteration counter
-  - Create rollback note in @handoffs/
+  - Create rollback note in handoffs/
   - Continue to next iteration (retry)
   - Track consecutive rollbacks, stop after 3
 - If confidence >= 80:
@@ -172,7 +172,7 @@ Both paths should result in the same outcome: a handoff file at @handoffs/iterat
   - Continue normally
 
 ### Step 7: Check Completion
-- Read ./@fix_plan.md
+- Read ./fix_plan.md
 - Count incomplete tasks: grep for "\[ \]"
 - If no incomplete tasks AND auditor mentioned:
   - Log project complete
