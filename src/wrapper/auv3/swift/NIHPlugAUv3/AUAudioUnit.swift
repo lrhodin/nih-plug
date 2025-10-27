@@ -63,6 +63,19 @@ import AudioToolbox
     private func setupAudioUnit() {
         print("NIHPlugAUv3: Setting up audio unit...")
         
+        // Test FFI integration by calling a simple function
+        // This forces the linker to include the FFI symbols
+        let testHandle = plugin_create()
+        if testHandle != nil {
+            print("NIHPlugAUv3: FFI plugin_create() succeeded - handle: \(testHandle!)")
+            let paramCount = plugin_get_parameter_count(testHandle!)
+            print("NIHPlugAUv3: Plugin has \(paramCount) parameters")
+            let destroyResult = plugin_destroy(testHandle!)
+            print("NIHPlugAUv3: Plugin destroy result: \(destroyResult)")
+        } else {
+            print("NIHPlugAUv3: FFI plugin_create() failed")
+        }
+        
         // Set up input and output busses
         // For now, we'll use stereo input/output
         let inputBus = try! AUAudioUnitBus(format: AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2)!)
