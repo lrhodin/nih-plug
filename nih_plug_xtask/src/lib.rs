@@ -593,20 +593,8 @@ fn bundle_plugin(
                 .status()
                 .context("Failed to copy .appex bundle")?;
             
-            // Update the Info.plist with plugin-specific metadata
-            generate_auv3_infoplist(
-                package,
-                &bundle_name,
-                &target_appex,
-                "Test Gain AUv3",  // plugin_name
-                "NIH-Plug",        // plugin_vendor
-                "1.0.0",           // plugin_version
-                "https://github.com/robbert-vdh/nih-plug", // plugin_url
-                "info@example.com", // plugin_email
-                0x61756D75,        // au_type: 'aumu' (Audio Unit Music Effect)
-                0x4E706C67,        // au_subtype: 'Nplg' (NIH-Plug identifier - mixed case)
-                0x4E504C47,        // au_manufacturer: 'NPLG' (NIH-Plug manufacturer)
-            )?;
+            // The Swift-built Info.plist already has the correct configuration
+            // No need to overwrite it with generate_auv3_infoplist
 
             maybe_codesign(&target_appex, compilation_target);
 
@@ -991,9 +979,9 @@ pub fn generate_auv3_infoplist(
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionPointIdentifier</key>
-        <string>com.apple.AudioUnit-UI</string>
+        <string>com.apple.AudioUnit</string>
         <key>NSExtensionPrincipalClass</key>
-        <string>NIHPlugAUv3.AUAudioUnit</string>
+        <string>NIHPlugAUv3</string>
     </dict>
     <key>AudioComponents</key>
     <array>

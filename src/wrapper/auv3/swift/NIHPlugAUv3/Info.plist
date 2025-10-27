@@ -27,7 +27,7 @@
         <key>NSExtensionPointIdentifier</key>
         <string>com.apple.AudioUnit</string>
         <key>NSExtensionPrincipalClass</key>
-        <string>$(PRODUCT_MODULE_NAME).NIHPlugAUv3</string>
+        <string>NIHPlugAUv3</string>
     </dict>
     <key>AudioComponents</key>
     <array>
