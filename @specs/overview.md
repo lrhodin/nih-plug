@@ -24,7 +24,25 @@ List the main goals of this project here.
 
 ## Architecture
 
-Describe the high-level architecture here.
+### Audio Unit (AUv2) Implementation
+
+NIH-plug's AU support follows the same architectural pattern as VST3 and CLAP:
+
+1. **Wrapper Layer** (`src/wrapper/au/`)
+   - Translates between AU C API and NIH-plug's Rust Plugin trait
+   - Handles AU component lifecycle (factory, open, close, render)
+   - Manages parameter mapping and automation
+   - Provides AU-specific contexts for initialization and processing
+
+2. **Component Structure**
+   - `AudioComponentPlugInInstance` - The main plugin instance struct
+   - `AudioComponentPlugInInterface` - Function table with AU callbacks
+   - Factory function - Creates instances from AudioComponentDescription
+
+3. **Bundle Distribution**
+   - Plugins are distributed as `.component` bundles
+   - Contains dylib, Info.plist, and optional resources
+   - Info.plist specifies component type, codes, and factory function
 
 ## Key Features
 

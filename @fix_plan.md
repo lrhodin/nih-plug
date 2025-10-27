@@ -9,9 +9,13 @@
 - [ ] Test: Can compile a minimal AU plugin that loads in Logic/GarageBand
 
 ## Phase 2: Core Audio Processing (CHECKPOINT: Can process audio)
-- [ ] Implement AU component registration and factory
-- [ ] Implement AU initialization and deinitialization
-- [ ] Implement audio rendering (process) function
+- [x] Implement AU component factory structure
+- [x] Create AudioComponentPlugInInstance and interface
+- [x] Document bundle structure and Info.plist requirements
+- [ ] Implement AU callback dispatching (Open, Close, Lookup)
+- [ ] Implement Initialize/Uninitialize
+- [ ] Implement GetProperty/SetProperty for basic properties
+- [ ] Implement audio rendering (Render callback)
 - [ ] Implement buffer handling for AU format
 - [ ] Test: Plugin processes audio in DAW
 
