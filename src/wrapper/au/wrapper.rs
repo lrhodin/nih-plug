@@ -112,6 +112,12 @@ impl<P: Plugin> Wrapper<P> {
     pub(crate) fn plugin(&self) -> &RwLock<P> {
         &self.plugin
     }
+
+    /// Get a reference to the parameters.
+    #[allow(dead_code)]
+    pub(crate) fn params(&self) -> &Arc<dyn Params> {
+        &self.params
+    }
 }
 
 impl<P: Plugin> Drop for Wrapper<P> {

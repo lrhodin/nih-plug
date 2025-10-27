@@ -11,6 +11,7 @@ pub mod bindings;
 mod callbacks;
 mod context;
 pub mod factory;
+mod parameters;
 mod properties;
 pub mod selectors;
 mod wrapper;

@@ -22,7 +22,9 @@
 - [ ] Test: Plugin processes audio in DAW
 
 ## Phase 3: Parameter System (CHECKPOINT: Parameters work in DAW)
-- [ ] Map NIH-plug parameters to AU parameters
+- [x] Map NIH-plug parameters to AU parameters (basic stubs)
+- [x] Implement Get/Set Parameter callbacks (basic stubs)
+- [ ] Complete parameter value conversion (normalized vs plain)
 - [ ] Implement parameter change notifications
 - [ ] Implement parameter automation
 - [ ] Implement preset/state save/load

@@ -52,6 +52,9 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
             property_ids::K_AUDIO_UNIT_PROPERTY_LATENCY => {
                 Self::get_latency(plugin_instance, data, data_size)
             }
+            property_ids::K_AUDIO_UNIT_PROPERTY_PARAMETER_LIST => {
+                Self::get_parameter_list(plugin_instance, data, data_size)
+            }
             _ => {
                 nih_debug_assert!(
                     false,
@@ -338,6 +341,35 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
         ptr::write(data as *mut f64, latency);
         *data_size = required_size;
 
+        errors::NO_ERR
+    }
+
+    /// Get the list of parameter IDs.
+    ///
+    /// This is used by the GetProperty handler for kAudioUnitProperty_ParameterList.
+    ///
+    /// # Safety
+    /// This function operates on raw pointers.
+    #[allow(unused_variables)]
+    unsafe fn get_parameter_list(
+        instance: &Self,
+        data: *mut c_void,
+        data_size: *mut u32,
+    ) -> i32 {
+        // TODO: Implement parameter list retrieval
+        // This requires proper integration with NIH-plug's parameter system
+
+        // For now, return an empty list
+        let num_params = 0;
+        let required_size = (num_params * std::mem::size_of::<u32>()) as u32;
+
+        // If data is null, just return the required size
+        if data.is_null() {
+            *data_size = required_size;
+            return errors::NO_ERR;
+        }
+
+        *data_size = required_size;
         errors::NO_ERR
     }
 }
