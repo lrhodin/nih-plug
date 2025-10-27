@@ -1,7 +1,7 @@
 # Implementation Ralph - nih-plug
 
 
-**IMPORTANT: Read the handoff note at handoffs/iteration_044.md first before starting.**
+**IMPORTANT: Read the handoff note at handoffs/iteration_046.md first before starting.**
 
 ## Your Mission
 
@@ -22,32 +22,37 @@ Research the codebase to understand how VST3/CLAP work, then apply similar patte
 
 This should be production-quality code suitable for upstream merge.
 
-## 🚨 CURRENT CRITICAL FOCUS: RESEARCH PHASE (Phase 7.5)
+## 🚨 CURRENT CRITICAL FOCUS: FIX DISCOVERY ISSUES (Phase 7.6)
 
-**BLOCKER IDENTIFIED:** The AUv3 plugin builds correctly but is NOT discovered by macOS:
-- ❌ Does not appear in `auval -a`
-- ❌ Does not appear in `pluginkit -m -v -p com.apple.audio-unit`
-- ❌ Does not appear in Logic Pro
+**BREAKTHROUGH:** Research complete! Apple's FilterDemo works in Logic Pro, but NIH-Plug doesn't.
 
-**YOUR CURRENT MISSION IS PURE RESEARCH - NO IMPLEMENTATION:**
+**ROOT CAUSE IDENTIFIED:** 5 structural differences between FilterDemo and NIH-Plug:
+1. AudioComponents in wrong location (top-level instead of inside NSExtensionAttributes)
+2. Missing app sandbox entitlement
+3. Wrong extension point identifier (headless vs UI)
+4. Missing NSExtensionServiceRoleType key
+5. Different framework architecture
 
-You MUST complete Phase 7.5 research tasks in fix_plan.md BEFORE attempting any fixes:
+**YOUR MISSION:** Implement fixes ONE AT A TIME, testing in Logic Pro after each fix.
 
-1. **Find working AUv3 examples** (Apple samples, open source projects)
-2. **Build and verify they work** on this system
-3. **Compare bundle structures** between working examples and NIH-Plug
-4. **Research registration mechanism** (pluginkit protocols, Info.plist keys, etc.)
-5. **Document ALL differences** in detailed comparison document
-6. **Create hypotheses** about what's causing discovery failure
-7. **Present findings** in handoff BEFORE attempting implementation
+**CRITICAL TESTING PROTOCOL:**
 
-**DO NOT:**
-- ❌ Attempt to fix the issue without understanding it first
-- ❌ Make random changes hoping they'll work
-- ❌ Skip comparing with working examples
-- ❌ Jump to implementation
+After EVERY fix you implement:
+1. Rebuild: `cargo xtask bundle-universal gain --release`
+2. Verify installed to `/Applications/gain.app`
+3. **🧪 STOP AND CREATE HANDOFF** with instruction: "Human must test in Logic Pro before continuing"
+4. Document in handoff: "Plugin built successfully. Ready for Logic Pro testing to verify if [Fix N] resolved discovery issue."
+5. **DO NOT continue to next fix** until human confirms result
 
-**This is a research iteration. Your success criteria is UNDERSTANDING, not FIXING.**
+**IMPORTANT:**
+- ✅ Implement ONE fix at a time
+- ✅ Create handoff after each fix for human testing
+- ✅ Document what changed and why
+- ❌ Don't batch multiple fixes together
+- ❌ Don't assume a fix worked without Logic Pro test
+- ❌ Don't continue to next fix until human confirms
+
+**Success = Plugin appears in Logic Pro plugin list**
 
 
 ## Core Loop
@@ -306,10 +311,11 @@ When you reach a testing checkpoint (Phases 5, 6, 8):
 - **Project Type:** Brownfield
 - **Build/Run Instructions:** See AGENT.md
 - **Current Plan:** See fix_plan.md
-- **🚨 CURRENT PHASE:** Phase 7.5 - AUv3 Discovery Research (RESEARCH ONLY - NO IMPLEMENTATION)
-- **Last Handoff:** handoffs/iteration_044.md
-- **Current Iteration:** 46
-- **Plugin Status:** Builds correctly, installs to `/Applications/gain.app`, but NOT discovered by macOS
+- **🚨 CURRENT PHASE:** Phase 7.6 - Fix Discovery Issues (ONE FIX AT A TIME + LOGIC PRO TEST)
+- **Last Handoff:** handoffs/iteration_046.md
+- **Current Iteration:** 47
+- **Plugin Status:** Builds correctly, but NOT discovered by Logic Pro. FilterDemo works → our implementation has fixable issues.
+- **Next Task:** Implement Fix 1 (Info.plist structure), then STOP for human Logic Pro testing
 
 ## Success Criteria
 

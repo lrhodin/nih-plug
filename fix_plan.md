@@ -1,20 +1,23 @@
 # Audio Unit v3 (AUv3) Support Implementation Plan
 
-## 🚨 CRITICAL ISSUE - PLUGIN NOT DISCOVERED BY MACOS (Iteration 45)
+## 🚨 BREAKTHROUGH - ROOT CAUSE IDENTIFIED (Iteration 46)
 
-**CURRENT STATUS:** Plugin builds and installs correctly to `/Applications/gain.app/Contents/PlugIns/NIHPlugAUv3.appex`, but is **NOT DISCOVERED** by the system.
+**VALIDATION COMPLETE:** Apple's FilterDemo appears in Logic Pro, but NIH-Plug AUv3 does NOT.
 
-**EVIDENCE:**
-- ❌ `auval -a` does NOT list the plugin
-- ❌ `pluginkit -m -v -p com.apple.audio-unit` shows "(no matches)"
-- ❌ Plugin does NOT appear in Logic Pro
-- ✅ Bundle structure is correct (host app + .appex extension)
-- ✅ Code signing works
-- ✅ FFI symbols present
+**This proves:**
+- ✅ AUv3 discovery mechanism works on this system
+- ✅ Our build/install process works
+- ❌ NIH-Plug implementation has specific structural issues
 
-**HYPOTHESIS:** There is a fundamental registration/discovery issue. We need to research working AUv3 examples to identify what's missing.
+**ROOT CAUSES IDENTIFIED (from FilterDemo comparison):**
 
-**NEXT STEP:** Complete "Phase 7.5: AUv3 Discovery Research" (see below) BEFORE attempting any more fixes.
+1. **Info.plist Structure Wrong** - AudioComponents must be inside NSExtensionAttributes (not top-level)
+2. **Missing AudioComponentBundle** - Need separate framework architecture like FilterDemo
+3. **Wrong Extension Point** - Using `com.apple.AudioUnit` (headless), FilterDemo uses `com.apple.AudioUnit-UI`
+4. **Missing Entitlements** - Need `com.apple.security.app-sandbox` entitlement
+5. **Missing NSExtensionServiceRoleType** - Need to declare "NSExtensionServiceRoleTypeEditor"
+
+**NEXT STEP:** Implement fixes in priority order (see Phase 7.6 below). Test in Logic Pro after each fix.
 
 ---
 
@@ -131,84 +134,122 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 - [ ] Handle code signing
 - [ ] Create installation script
 
-## Phase 7.5: AUv3 Discovery Research (CHECKPOINT: Understand why plugin isn't discovered) 🔴 IN PROGRESS
+## Phase 7.5: AUv3 Discovery Research ✅ COMPLETED (Iteration 46)
 
-**🚨 BLOCKER:** Plugin builds correctly but is NOT discovered by macOS. Must research before attempting more fixes.
+**Research completed successfully. Key findings:**
 
-**RESEARCH ONLY - NO IMPLEMENTATION THIS PHASE**
+- ✅ Found and built Apple's FilterDemo sample
+- ✅ Verified FilterDemo appears in Logic Pro (NIH-Plug does not)
+- ✅ Documented 5 major structural differences
+- ✅ Created 6 prioritized hypotheses
+- ✅ Tested both plugins in Logic Pro - confirmed FilterDemo works
 
-### Core Research Tasks
+**See handoffs/iteration_046.md for complete research findings (4,700+ words)**
 
-- [ ] **Find working AUv3 examples:**
-  - [ ] Search for Apple's AUv3 sample code (FilterDemoApp, AUv3 host examples)
-  - [ ] Search GitHub for minimal, working open-source AUv3 plugins
-  - [ ] Identify 2-3 examples that are confirmed working
-  - [ ] Download and build at least one example locally
+---
 
-- [ ] **Verify example plugins work:**
-  - [ ] Install example plugin to /Applications
-  - [ ] Run `auval -a` - does it show up?
-  - [ ] Run `pluginkit -m` with various protocols - which protocol works?
-  - [ ] Test in Logic Pro - does it appear?
-  - [ ] Document exact commands and results
+## Phase 7.6: Fix Discovery Issues (CHECKPOINT: Plugin appears in Logic Pro) 🔴 IN PROGRESS
 
-- [ ] **Compare bundle structure:**
-  - [ ] Compare working example's bundle structure vs NIH-Plug's
-  - [ ] Check all Info.plist keys in both host app and extension
-  - [ ] Compare NSExtension configuration
-  - [ ] Compare AudioComponents array structure
-  - [ ] Document ALL differences found
+**GOAL:** Implement fixes based on research findings. Test in Logic Pro after each fix.
 
-- [ ] **Research registration mechanism:**
-  - [ ] Research: Does AUv3 use pluginkit or different system?
-  - [ ] Research: What is the correct pluginkit protocol for AUv3? (not `com.apple.audio-unit`?)
-  - [ ] Research: Does macOS cache plugin registrations? How to clear?
-  - [ ] Check Console.app for system logs during plugin installation
-  - [ ] Document the complete AUv3 registration flow
+**CRITICAL:** After each fix below, rebuild, install, and TEST IN LOGIC PRO before moving to next fix.
 
-- [ ] **Investigate code signing requirements:**
-  - [ ] Compare code signing of working example vs NIH-Plug
-  - [ ] Research: Are there specific entitlements needed?
-  - [ ] Research: Does AUv3 require App Store signing vs ad-hoc?
-  - [ ] Document signing requirements
+### Fix 1: Info.plist Structure (HIGHEST PRIORITY - Quick Win)
 
-- [ ] **Test system refresh commands:**
-  - [ ] Test: `killall -9 AudioComponentRegistrar`
-  - [ ] Test: `pluginkit -r` (reset plugin cache)
-  - [ ] Test: Restart macOS
-  - [ ] Document which (if any) work for AUv3
+**Hypothesis:** AudioComponents location in plist is wrong. FilterDemo has it inside NSExtensionAttributes.
 
-- [ ] **Create detailed comparison document:**
-  - [ ] Document all differences found between working example and NIH-Plug
-  - [ ] Prioritize differences by likely impact
-  - [ ] Create hypotheses for what's causing discovery failure
-  - [ ] **CHECKPOINT: Present research findings before any implementation**
+- [ ] **Move AudioComponents inside NSExtensionAttributes:**
+  - [ ] Update .appex Info.plist generator in bundler
+  - [ ] Move AudioComponents array from top-level into NSExtension/NSExtensionAttributes
+  - [ ] Add NSExtensionServiceRoleType = "NSExtensionServiceRoleTypeEditor"
+  - [ ] Keep existing keys (manufacturer, name, description, type, subtype, version)
 
-### Research Questions to Answer
+- [ ] **Test after Fix 1:**
+  - [ ] Rebuild: `cargo xtask bundle-universal gain --release`
+  - [ ] Install to /Applications
+  - [ ] **🧪 TEST IN LOGIC PRO** - Does plugin appear now?
+  - [ ] Document result in handoff
+  - [ ] **CHECKPOINT: If plugin appears, STOP and report success**
 
-1. **Do AUv3 plugins appear in `auval -a`?** Or is that only for AUv2?
-2. **What pluginkit protocol should AUv3 use?** The current `com.apple.audio-unit` returns no matches
-3. **Is the NSExtensionPointIdentifier correct?** Should it be something else?
-4. **Are there additional Info.plist keys required?** Compare with working examples
-5. **Does the host app need to be launched once?** To trigger registration?
-6. **Are there Console.app errors?** Check for registration failures
-7. **Is our AudioComponents array structure correct?** Compare with working examples
+### Fix 2: Add App Sandbox Entitlement
+
+**Hypothesis:** AUv3 extensions require sandbox entitlement.
+
+- [ ] **Create entitlements file:**
+  - [ ] Create `src/wrapper/auv3/swift/NIHPlugAUv3.entitlements`
+  - [ ] Add `com.apple.security.app-sandbox = true`
+  - [ ] Update Xcode project to use entitlements during signing
+
+- [ ] **Update bundler:**
+  - [ ] Add entitlements to code signing step
+  - [ ] Ensure both .app and .appex are signed with entitlements
+
+- [ ] **Test after Fix 2:**
+  - [ ] Rebuild and install
+  - [ ] **🧪 TEST IN LOGIC PRO** - Does plugin appear now?
+  - [ ] Document result in handoff
+  - [ ] **CHECKPOINT: If plugin appears, STOP and report success**
+
+### Fix 3: Switch to UI Extension Point (if Fixes 1-2 don't work)
+
+**Hypothesis:** macOS may only register plugins with UI support declaration.
+
+- [ ] **Change to com.apple.AudioUnit-UI:**
+  - [ ] Update NSExtensionPointIdentifier from `com.apple.AudioUnit` to `com.apple.AudioUnit-UI`
+  - [ ] Create minimal NSViewController subclass in Swift
+  - [ ] Update NSExtensionPrincipalClass to point to view controller (not AUAudioUnit)
+  - [ ] Add generic view with plugin name label
+
+- [ ] **Test after Fix 3:**
+  - [ ] Rebuild and install
+  - [ ] **🧪 TEST IN LOGIC PRO** - Does plugin appear now?
+  - [ ] Document result in handoff
+  - [ ] **CHECKPOINT: If plugin appears, STOP and report success**
+
+### Fix 4: Framework Architecture (if Fixes 1-3 don't work)
+
+**Hypothesis:** Separate framework with AudioComponentBundle is required.
+
+**⚠️ MAJOR REFACTOR - Only attempt if simpler fixes fail**
+
+- [ ] **Create separate framework:**
+  - [ ] Create NIHPlugAUv3Framework.framework target in Xcode
+  - [ ] Move AUAudioUnit subclass to framework
+  - [ ] Move FFI bridge code to framework
+  - [ ] Keep only minimal loader code in .appex
+
+- [ ] **Update Info.plist:**
+  - [ ] Add AudioComponentBundle key pointing to framework bundle ID
+  - [ ] Update structure to match FilterDemo exactly
+
+- [ ] **Update bundle structure:**
+  - [ ] Place framework in .app/Contents/Frameworks/
+  - [ ] Update code signing for framework
+
+- [ ] **Update bundler:**
+  - [ ] Build framework separately
+  - [ ] Copy framework to correct location
+  - [ ] Update linking in .appex
+
+- [ ] **Test after Fix 4:**
+  - [ ] Rebuild and install
+  - [ ] **🧪 TEST IN LOGIC PRO** - Does plugin appear now?
+  - [ ] Document result in handoff
+  - [ ] **CHECKPOINT: Plugin should appear after this fix**
 
 ### Success Criteria
 
-- ✅ Found and built at least one working AUv3 example
-- ✅ Verified example appears in system (auval/pluginkit/Logic)
-- ✅ Documented exact differences between working example and NIH-Plug
-- ✅ Have clear hypotheses for what's wrong
-- ✅ **CHECKPOINT: Present research findings to human before attempting fixes**
+- ✅ Plugin appears in Logic Pro Audio FX plugin list
+- ✅ Plugin can be instantiated (even if audio processing has issues)
+- ✅ Know which specific fix(es) made it work
+- ✅ Document findings for upstream PR
 
 ### Important Notes
 
-- **NO IMPLEMENTATION** this phase - pure research only
-- Focus on understanding, not fixing
-- Document everything found
-- Create clear comparison between working vs non-working
-- End with hypotheses, not solutions
+- **Test after EACH fix** - Don't batch multiple changes
+- **Stop when it works** - Don't implement more fixes than needed
+- **Document which fix worked** - Critical for understanding root cause
+- **Logic Pro is the test** - Not auval, not pluginkit, not AVAudioUnitComponentManager
 
 ## Phase 8: Automated Validation (CHECKPOINT: Passes pluginval)
 
@@ -277,9 +318,11 @@ pluginval --strictness-level 5 --validate-in-process --verbose /path/to/TestPlug
 **Completed (iteration 17):** Phase 7 - Build Automation ✅
 **Completed (iteration 30):** Bundle structure fix ✅
 **Completed (iteration 44):** Fixed NSExtensionPointIdentifier ✅
-**Current (iteration 45):** Phase 7.5 - AUv3 Discovery Research 🔴
-**Next task:** Research working AUv3 examples to understand discovery mechanism
-**After that:** Fix discovery issues, then Phase 8 validation & Phase 9 polish
+**Completed (iteration 46):** Phase 7.5 - AUv3 Discovery Research ✅
+**BREAKTHROUGH:** FilterDemo works in Logic Pro, NIH-Plug doesn't - root cause identified!
+**Current (iteration 47):** Phase 7.6 - Fix Discovery Issues 🔴
+**Next task:** Implement Fix 1 (Info.plist structure), then test in Logic Pro
+**After that:** Continue with Fixes 2-4 until plugin appears, then Phase 8 validation & Phase 9 polish
 
 ## Recent Accomplishments (Iteration 005)
 
