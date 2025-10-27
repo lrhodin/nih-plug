@@ -148,11 +148,33 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 
 ---
 
-## Phase 7.6: Fix Discovery Issues (CHECKPOINT: Plugin appears in Logic Pro) 🔴 IN PROGRESS
+## Phase 7.6: Fix Discovery Issues (CHECKPOINT: Plugin appears in Logic Pro) ✅ COMPLETED
+
+**STATUS:** Plugin successfully appears and loads in Logic Pro! (Completed iteration 58)
 
 **GOAL:** Implement fixes based on research findings. Test in Logic Pro after each fix.
 
-**CRITICAL:** After each fix below, rebuild, install, and TEST IN LOGIC PRO before moving to next fix.
+**🚨 CRITICAL DEVELOPER WORKFLOW - READ THIS FIRST:**
+
+Logic Pro and auval cache plugins based on their **version number** in the Info.plist file. If the version hasn't changed, they assume the plugin hasn't changed and use cached information instead ([MoonbaseKVR Audio](https://www.kvraudio.com/forum/viewtopic.php?t=531882)).
+
+**During development, you MUST:**
+1. **Increment the version number** with each build in `Info.plist` (even just 1.0.0 → 1.0.1 → 1.0.2)
+2. **Kill the cache daemons** before testing:
+   ```bash
+   sudo killall -9 AudioComponentRegistrar
+   sudo killall -9 coreaudiod
+   ```
+3. **Rebuild and install** after incrementing version
+4. **Test in Logic Pro** - the plugin should now be recognized
+
+**Why this matters:**
+- Version number is part of the cache key
+- Changing bundle ID or subtype is NOT sufficient
+- Even with cache clearing, Logic may ignore plugins with unchanged versions
+- This is the #1 reason plugins appear to "not work" during development
+
+**CRITICAL:** After each fix below, increment version, kill cache daemons, rebuild, install, and TEST IN LOGIC PRO before moving to next fix.
 
 ### Fix 1: Info.plist Structure (HIGHEST PRIORITY - Quick Win)
 
