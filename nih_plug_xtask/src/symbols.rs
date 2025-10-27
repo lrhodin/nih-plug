@@ -25,8 +25,16 @@ pub fn exported<P: AsRef<Path>>(binary: P, symbol: &str) -> Result<bool> {
                     goblin::mach::SingleArch::MachO(obj) => obj,
                     // THis shouldn't be hit
                     goblin::mach::SingleArch::Archive(_) => {
+                        // For static libraries (.a files), use nm as a fallback
+                        if let Ok(output) = Command::new("nm")
+                            .arg(binary.as_ref())
+                            .output()
+                        {
+                            let output_str = String::from_utf8_lossy(&output.stdout);
+                            return Ok(output_str.contains(&format!("_{symbol}")));
+                        }
                         anyhow::bail!(
-                            "'{}' contained an unexpected Mach-O archive",
+                            "'{}' contained an unexpected Mach-O archive and nm failed",
                             binary.as_ref().display()
                         )
                     }
@@ -74,6 +82,18 @@ pub fn exported<P: AsRef<Path>>(binary: P, symbol: &str) -> Result<bool> {
             Ok(found)
         }
         goblin::Object::PE(obj) => Ok(obj.exports.iter().any(|sym| sym.name == Some(symbol))),
+        goblin::Object::Archive(_) => {
+            // For static libraries (.a files), use nm as a fallback
+            if let Ok(output) = Command::new("nm")
+                .arg(binary.as_ref())
+                .output()
+            {
+                let output_str = String::from_utf8_lossy(&output.stdout);
+                Ok(output_str.contains(&format!("_{symbol}")))
+            } else {
+                Ok(false)
+            }
+        }
         obj => bail!("Unsupported object type: {:?}", obj),
     }
 }

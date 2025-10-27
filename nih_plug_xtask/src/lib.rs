@@ -752,6 +752,39 @@ fn binary_basename(package: &str, target: CompilationTarget) -> String {
     }
 }
 
+/// Read the crate type from a package's Cargo.toml file
+fn get_crate_type(package: &str) -> Result<Option<String>> {
+    let cargo_toml_path = format!("plugins/examples/{}/Cargo.toml", package);
+    let cargo_toml_path = Path::new(&cargo_toml_path);
+    
+    if !cargo_toml_path.exists() {
+        return Ok(None);
+    }
+    
+    let cargo_toml_content = fs::read_to_string(cargo_toml_path)
+        .context("Could not read Cargo.toml")?;
+    
+    // Simple parsing to find crate-type
+    for line in cargo_toml_content.lines() {
+        let line = line.trim();
+        if line.starts_with("crate-type") {
+            if let Some(start) = line.find('[') {
+                if let Some(end) = line.find(']') {
+                    let types_str = &line[start + 1..end];
+                    // Look for staticlib first, then cdylib
+                    if types_str.contains("staticlib") {
+                        return Ok(Some("staticlib".to_string()));
+                    } else if types_str.contains("cdylib") {
+                        return Ok(Some("cdylib".to_string()));
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(None)
+}
+
 /// The file name of the compiled library for a `cdylib` crate.
 fn library_basename(package: &str, target: CompilationTarget) -> String {
     // Cargo will replace dashes with underscores
@@ -760,6 +793,12 @@ fn library_basename(package: &str, target: CompilationTarget) -> String {
     match target {
         CompilationTarget::Linux(_) => format!("lib{lib_name}.so"),
         CompilationTarget::MacOS(_) | CompilationTarget::MacOSUniversal => {
+            // Check if this is a static library
+            if let Ok(Some(crate_type)) = get_crate_type(package) {
+                if crate_type == "staticlib" {
+                    return format!("lib{lib_name}.a");
+                }
+            }
             format!("lib{lib_name}.dylib")
         }
         CompilationTarget::Windows(_) => format!("{lib_name}.dll"),
