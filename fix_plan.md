@@ -1,5 +1,20 @@
 # Audio Unit v3 (AUv3) Support Implementation Plan
 
+## 🚨 CRITICAL ISSUE IDENTIFIED - READ `AUV3_DEPLOYMENT_ISSUE.md` FIRST
+
+**ROOT CAUSE FOUND (Iterations 27-30):** Plugin recognition failure is due to **incorrect bundle structure**, not implementation issues.
+
+**All Swift/FFI code is CORRECT.** The problem: AUv3 `.appex` files must be inside a **host .app bundle** to be registered by macOS.
+
+👉 **READ `AUV3_DEPLOYMENT_ISSUE.md` for complete solution before continuing!**
+
+Current bundler creates standalone `.appex` which macOS ignores. Need to create:
+```
+NIHPlugAUv3Host.app/Contents/PlugIns/NIHPlugAUv3.appex/
+```
+
+---
+
 ## ⚠️ ARCHITECTURAL PIVOT - READ FIRST
 
 **Iterations 1-3 built AUv2 (deprecated). Starting iteration 4, we're pivoting to AUv3.**
@@ -110,7 +125,9 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 - [x] Fix Audio Unit interface implementation issues (plugin not recognized by system)
 - [x] Fix code signing issues preventing proper testing
 - [x] Fix Audio Unit registration and recognition
-- [ ] Debug plugin recognition issues (plugin not appearing in system)
+- [x] Debug plugin recognition issues (plugin not appearing in system) ✅ ROOT CAUSE FOUND!
+- [ ] **🚨 CRITICAL: Fix bundler to create host .app structure (see AUV3_DEPLOYMENT_ISSUE.md)**
+- [ ] Test plugin recognition with proper host app bundle
 - [ ] Document validation results in handoff
 - [ ] **CHECKPOINT: Plugin passes pluginval strictness level 5**
 
@@ -143,7 +160,9 @@ pluginval --strictness-level 5 --validate-in-process --verbose /path/to/TestPlug
 **Completed (iterations 1-5):** AUv2 foundation with working audio processing
 **Completed (iteration 6):** Phase 1 - Research AUv3 architecture ✅
 **Completed (iteration 17):** Phase 7 - Build Automation ✅
-**Next task:** Phase 8 - Polish & Testing
+**Completed (iteration 30):** Root cause analysis ✅
+**Next task:** Fix bundler to create host app structure (see AUV3_DEPLOYMENT_ISSUE.md)
+**After that:** Phase 8 validation & Phase 9 polish
 
 ## Recent Accomplishments (Iteration 005)
 

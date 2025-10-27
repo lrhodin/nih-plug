@@ -1,7 +1,7 @@
 # Implementation Ralph - nih-plug
 
 
-**IMPORTANT: Read the handoff note at handoffs/iteration_029.md first before starting.**
+**IMPORTANT: Read the handoff note at handoffs/iteration_030.md first before starting.**
 
 ## Your Mission
 
@@ -279,7 +279,8 @@ When you reach a testing checkpoint (Phases 5, 6, 8):
 - **Project Type:** Brownfield
 - **Build/Run Instructions:** See AGENT.md
 - **Current Plan:** See fix_plan.md
-- **Last Handoff:** handoffs/iteration_006.md
+- **🚨 CRITICAL:** Read `AUV3_DEPLOYMENT_ISSUE.md` - explains why plugin isn't recognized (bundle structure issue, NOT code issue)
+- **Last Handoff:** See latest in handoffs/ directory
 
 ## Success Criteria
 
