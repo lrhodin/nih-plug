@@ -1221,6 +1221,11 @@ fn create_host_app_infoplist(package: &str, display_name: &str, contents_dir: &P
     <string>10.11</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSExtension</key>
+    <dict>
+        <key>NSExtensionPointIdentifier</key>
+        <string>com.apple.AudioUnit</string>
+    </dict>
 </dict>
 </plist>
 "#);

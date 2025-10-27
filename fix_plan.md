@@ -134,9 +134,12 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 - [x] **🚨 CRITICAL: Fix AUv3 deployment - install to /Applications instead of ~/Library/Audio/Plug-Ins/Components/**
 - [x] Test plugin recognition after /Applications deployment (plugin not recognized by auval)
 - [x] Add launch step to trigger PlugInKit registration (implemented but not working)
-- [ ] **🚨 CRITICAL: Debug plugin recognition issue - auval cannot find component**
-- [ ] **🚨 CRITICAL: Investigate host app Info.plist configuration for AUv3 discovery**
-- [ ] **🚨 CRITICAL: Check if app extension registration requires different approach**
+- [x] **🚨 CRITICAL: Debug plugin recognition issue - auval cannot find component** (investigated multiple approaches, still not working)
+- [x] **🚨 CRITICAL: Investigate host app Info.plist configuration for AUv3 discovery** (added NSExtension configuration, still not working)
+- [ ] **🚨 CRITICAL: Research AUv3 discovery mechanism - may need different approach entirely**
+- [ ] **🚨 CRITICAL: Check if Swift class NIHPlugAUv3 is properly exported and accessible**
+- [ ] **🚨 CRITICAL: Investigate if AUv3 requires different bundle structure or registration method**
+- [ ] **🚨 CRITICAL: Test with a minimal working AUv3 example to understand correct approach**
 - [ ] Verify plugin appears in pluginkit and auval
 - [ ] Document validation results in handoff
 - [ ] **CHECKPOINT: Plugin passes pluginval strictness level 5**
