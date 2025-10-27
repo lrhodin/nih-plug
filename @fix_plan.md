@@ -16,35 +16,43 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 
 ## Phase 1: Research & Planning (CHECKPOINT: Understand AUv3 architecture)
 
-- [ ] Research AUv3 architecture and AVAudioUnit framework
-- [ ] Study Apple's AUv3 documentation and examples
-- [ ] Understand app extension structure and requirements
-- [ ] Research Rust FFI patterns for Swift interop
-- [ ] Document AUv3 vs AUv2 differences
-- [ ] Create architectural plan for NIH-plug AUv3 integration
+### Research Tasks (small, focused - max 20 min each)
+
+- [ ] Document key AUv2 vs AUv3 architectural differences (brief summary)
+- [ ] Research: AVAudioUnit class hierarchy and core methods
+- [ ] Research: AUv3 app extension bundle structure (.appex format)
+- [ ] Research: Basic Swift-to-Rust FFI examples (simple function calls)
+- [ ] Research: AUParameter and AUParameterTree for parameter management
+- [ ] Research: AUv3 audio processing (internalRenderBlock)
+- [ ] Create: One-page AUv3 architecture summary for NIH-plug integration
 - [ ] **CHECKPOINT: Present architecture plan for human review**
 
 ## Phase 2: FFI Foundation (CHECKPOINT: Rust plugin exports via FFI)
 
-- [ ] Design C FFI interface for plugin operations
-- [ ] Create Rust FFI module (`src/wrapper/auv3/ffi.rs`)
-- [ ] Implement FFI functions for:
-  - Plugin initialization/deinitialization
-  - Parameter queries (count, info, get/set)
-  - Audio processing callback
-  - State save/load
-- [ ] Add C header generation (cbindgen or manual)
-- [ ] Create test harness to verify FFI from C
+### FFI Tasks (small, incremental)
+
+- [ ] Create `src/wrapper/auv3/ffi.rs` with basic module structure
+- [ ] Implement FFI: Plugin initialization (init/deinit only)
+- [ ] Implement FFI: Parameter count and info queries
+- [ ] Implement FFI: Parameter get/set functions
+- [ ] Implement FFI: Audio processing callback signature
+- [ ] Implement FFI: State serialization/deserialization
+- [ ] Generate C headers using cbindgen or write manually
+- [ ] Create simple C test program to verify FFI calls work
 - [ ] **CHECKPOINT: Can call Rust plugin from C test program**
 
 ## Phase 3: Swift App Extension Scaffold (CHECKPOINT: Extension compiles)
 
-- [ ] Create app extension directory structure
-- [ ] Generate Xcode project for AUv3 extension
-- [ ] Create AUAudioUnit subclass in Swift
-- [ ] Integrate Rust staticlib into Xcode build
-- [ ] Bridge C headers to Swift
-- [ ] Implement minimal AUAudioUnit methods (init, inputBusses, outputBusses)
+### Swift Extension Tasks (small, buildable steps)
+
+- [ ] Create basic app extension directory structure
+- [ ] Generate minimal Xcode project for AUv3 extension
+- [ ] Add Rust staticlib to Xcode project (link only, no bridging yet)
+- [ ] Create empty AUAudioUnit subclass in Swift
+- [ ] Add bridging header for C FFI imports
+- [ ] Implement AUAudioUnit init method (minimal stub)
+- [ ] Implement inputBusses and outputBusses properties (stub)
+- [ ] Verify extension builds (even with stubs)
 - [ ] **CHECKPOINT: Extension builds and can be loaded (even if non-functional)**
 
 ## Phase 4: Parameter System (CHECKPOINT: Parameters visible in DAW)
