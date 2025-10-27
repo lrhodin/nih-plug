@@ -107,9 +107,9 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 - [x] Download and install pluginval for macOS
 - [x] Build test AUv3 plugin (e.g., gain example with AUv3 export)
 - [x] Run pluginval in headless mode at strictness level 5
-- [ ] Fix Audio Unit interface implementation issues (plugin not recognized by system)
+- [x] Fix Audio Unit interface implementation issues (plugin not recognized by system)
 - [ ] Fix code signing issues preventing proper testing
-- [ ] Fix Audio Unit registration and recognition
+- [x] Fix Audio Unit registration and recognition
 - [ ] Document validation results in handoff
 - [ ] **CHECKPOINT: Plugin passes pluginval strictness level 5**
 
