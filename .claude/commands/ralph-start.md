@@ -14,21 +14,23 @@ Run autonomous development iterations until the project is complete. For each it
 ## Setup
 
 Read these files to understand the current state:
-- @fix_plan.md - Current task list
-- @specs/overview.md - Project specifications
-- @handoffs/ - Previous iteration notes
-- .ralph/config.json - Configuration
-- .ralph/current_iteration.txt - Current iteration number
+- `./@fix_plan.md` - Current task list
+- `./@specs/overview.md` - Project specifications
+- `./@handoffs/` - Previous iteration notes
+- `./.ralph/config.json` - Configuration
+- `./.ralph/current_iteration.txt` - Current iteration number
+
+**IMPORTANT:** All paths starting with `@` must be prefixed with `./` when using Read tool (e.g., Read("./@fix_plan.md"))
 
 ## Iteration Loop
 
 For each iteration, follow this process:
 
 ### Step 1: Preparation
-- Read .ralph/current_iteration.txt to get current iteration number
+- Read ./.ralph/current_iteration.txt to get current iteration number
 - Increment iteration number
-- Update .ralph/current_iteration.txt with new number
-- Read the latest handoff from @handoffs/
+- Update ./.ralph/current_iteration.txt with new number
+- Read the latest handoff from ./@handoffs/ directory
 
 ### Step 2: Check Tool Configuration
 - Read .ralph/config.json
@@ -36,8 +38,8 @@ For each iteration, follow this process:
 - This determines which agent type to spawn
 
 ### Step 2.5: Generate Implementation Prompt
-- Read PROMPT.md as the base template
-- Read @specs/overview.md for project context
+- Read ./PROMPT.md as the base template
+- Read ./@specs/overview.md for project context
 - Create the full implementation prompt that includes:
   - The base PROMPT.md content
   - Reference to the latest handoff file
@@ -121,12 +123,12 @@ Launch Cursor now and monitor until completion.
 ```
 
 The prompt should instruct the implementation agent (Claude or Cursor) to:
-- Read @fix_plan.md and choose the most important task
+- Read ./@fix_plan.md and choose the most important task
 - Search codebase before implementing
 - Implement ONE thing completely (no placeholders)
 - Write tests that explain WHY
 - Run tests and ensure they pass
-- Update @fix_plan.md (mark done, add new tasks)
+- Update ./@fix_plan.md (mark done, add new tasks)
 - Git commit with descriptive message
 - Create handoff at @handoffs/iteration_NNN.md with:
   - Confidence Score (0-100)
@@ -151,7 +153,7 @@ The Task tool will block until the agent completes.
 Both paths should result in the same outcome: a handoff file at @handoffs/iteration_NNN.md
 
 ### Step 5: Parse Results
-- Read @handoffs/iteration_NNN.md
+- Read ./@handoffs/iteration_NNN.md
 - Extract confidence score
 - Check if tests are passing
 - Note any issues
@@ -170,7 +172,7 @@ Both paths should result in the same outcome: a handoff file at @handoffs/iterat
   - Continue normally
 
 ### Step 7: Check Completion
-- Read @fix_plan.md
+- Read ./@fix_plan.md
 - Count incomplete tasks: grep for "\[ \]"
 - If no incomplete tasks AND auditor mentioned:
   - Log project complete
