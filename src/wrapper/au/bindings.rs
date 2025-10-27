@@ -59,6 +59,32 @@ pub const fn make_four_char_code(bytes: &[u8; 4]) -> FourCharCode {
     u32::from_be_bytes(*bytes)
 }
 
+/// MIDI event structure for Audio Units
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct MIDIEvent {
+    /// The MIDI status byte (note on, note off, etc.)
+    pub status: u8,
+    /// The MIDI data byte 1 (note number, controller number, etc.)
+    pub data1: u8,
+    /// The MIDI data byte 2 (velocity, controller value, etc.)
+    pub data2: u8,
+    /// Reserved field
+    pub reserved: u8,
+    /// The sample offset within the current buffer
+    pub sample_offset: u32,
+}
+
+/// MIDI event list structure
+#[repr(C)]
+#[derive(Debug)]
+pub struct MIDIEventList {
+    /// Number of MIDI events in the list
+    pub num_events: u32,
+    /// Array of MIDI events
+    pub events: [MIDIEvent; 0],
+}
+
 /// Audio Unit property IDs
 pub mod property_ids {
     /// Class info property
@@ -81,6 +107,10 @@ pub mod property_ids {
     pub const K_AUDIO_UNIT_PROPERTY_CURRENT_PRESET: u32 = 5;
     /// Factory presets property - for getting available presets
     pub const K_AUDIO_UNIT_PROPERTY_FACTORY_PRESETS: u32 = 6;
+    /// MIDI input callback property
+    pub const K_AUDIO_UNIT_PROPERTY_MIDI_INPUT_CALLBACK: u32 = 7;
+    /// MIDI output callback property
+    pub const K_AUDIO_UNIT_PROPERTY_MIDI_OUTPUT_CALLBACK: u32 = 8;
 }
 
 /// Audio Unit scope identifiers

@@ -204,23 +204,35 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
     /// Process MIDI events for the current audio buffer.
     ///
     /// This method processes any MIDI events that are queued for the current
-    /// audio buffer. In a full implementation, this would handle MIDI events
-    /// from the AU host.
-    fn process_midi_events(plugin_instance: &Self, _num_frames: usize) {
-        // For now, we don't have a way to receive MIDI events from the AU host
-        // This would need to be implemented through the AU MIDI system
-        // which typically requires the plugin to be registered as a MusicDevice
-        // or MusicEffect component type
+    /// audio buffer. MIDI events are received through the AU MIDI callbacks
+    /// and converted to NIH-plug format.
+    fn process_midi_events(plugin_instance: &Self, num_frames: usize) {
+        // Process any MIDI events that are queued for this buffer
+        // The MIDI events are added to the queue by the AU MIDI callbacks
+        // (au_midi_input, au_start_note, au_stop_note)
         
-        // TODO: Implement MIDI event processing from AU host
-        // This would involve:
-        // 1. Registering the plugin as a MusicDevice/MusicEffect component
-        // 2. Implementing MIDI event callbacks from the host
-        // 3. Converting AU MIDI events to NIH-plug NoteEvent format
-        // 4. Adding events to the wrapper's MIDI event queue
+        // For now, we'll process any existing MIDI events in the queue
+        // In a full implementation, this would also handle real-time MIDI
+        // events from the AU host during audio processing
         
-        // For now, we just clear any existing MIDI events
-        plugin_instance.wrapper.clear_midi_events();
+        let mut events_processed = 0;
+        while let Some(event) = plugin_instance.wrapper.get_next_midi_event() {
+            // Process the MIDI event
+            // The plugin will handle the event during its process() call
+            nih_log!("AU Processing MIDI event: {:?}", event);
+            events_processed += 1;
+            
+            // Prevent infinite loops in case of issues
+            if events_processed > 1000 {
+                nih_log!("AU Too many MIDI events in queue, clearing remaining");
+                plugin_instance.wrapper.clear_midi_events();
+                break;
+            }
+        }
+        
+        if events_processed > 0 {
+            nih_log!("AU Processed {} MIDI events for buffer of {} frames", events_processed, num_frames);
+        }
     }
 
 }

@@ -3,6 +3,8 @@
 
 #[cfg(feature = "au")]
 pub mod au;
+#[cfg(feature = "auv3")]
+pub mod auv3;
 pub mod clap;
 pub mod state;
 pub(crate) mod util;

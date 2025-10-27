@@ -48,6 +48,12 @@ pub enum AudioUnitSelector {
     Process = 0x0014,
     /// Process multiple buffers
     ProcessMultiple = 0x0015,
+    /// MIDI input callback
+    MIDIInput = 0x0016,
+    /// Start note
+    StartNote = 0x0017,
+    /// Stop note
+    StopNote = 0x0018,
 }
 
 impl AudioUnitSelector {
@@ -73,6 +79,9 @@ impl AudioUnitSelector {
             0x0013 => Some(Self::ComplexRender),
             0x0014 => Some(Self::Process),
             0x0015 => Some(Self::ProcessMultiple),
+            0x0016 => Some(Self::MIDIInput),
+            0x0017 => Some(Self::StartNote),
+            0x0018 => Some(Self::StopNote),
             _ => None,
         }
     }
@@ -99,6 +108,9 @@ impl AudioUnitSelector {
             Self::ComplexRender => "ComplexRender",
             Self::Process => "Process",
             Self::ProcessMultiple => "ProcessMultiple",
+            Self::MIDIInput => "MIDIInput",
+            Self::StartNote => "StartNote",
+            Self::StopNote => "StopNote",
         }
     }
 
@@ -114,6 +126,24 @@ impl AudioUnitSelector {
                 | Self::SetParameter
                 | Self::ScheduleParameters
                 | Self::Render
+        )
+    }
+
+    /// Check if this selector is required for a MIDI-capable plugin (MusicDevice or MusicEffect)
+    pub fn is_required_for_midi(&self) -> bool {
+        matches!(
+            self,
+            Self::Initialize
+                | Self::Uninitialize
+                | Self::GetProperty
+                | Self::SetProperty
+                | Self::GetParameter
+                | Self::SetParameter
+                | Self::ScheduleParameters
+                | Self::Render
+                | Self::MIDIInput
+                | Self::StartNote
+                | Self::StopNote
         )
     }
 }

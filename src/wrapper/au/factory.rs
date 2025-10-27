@@ -38,7 +38,7 @@ pub struct AudioComponentPlugInInterface {
 
 impl<P: Plugin> AudioComponentPlugInInstance<P> {
     /// Create a new plugin instance from the given description.
-    pub fn new(_desc: &AudioComponentDescription) -> Box<Self> {
+    pub fn new(desc: &AudioComponentDescription) -> Box<Self> {
         let wrapper = Wrapper::<P>::new();
 
         // Create the function table
@@ -48,6 +48,17 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
             lookup: Self::lookup,
             reserved: std::ptr::null(),
         }));
+
+        // Log the component type for debugging
+        let component_type = desc.component_type;
+        let is_midi_capable = component_type == super::bindings::component_types::K_AUDIO_UNIT_TYPE_MUSIC_DEVICE
+            || component_type == super::bindings::component_types::K_AUDIO_UNIT_TYPE_MUSIC_EFFECT;
+        
+        if is_midi_capable {
+            nih_log!("AU Creating MIDI-capable plugin instance");
+        } else {
+            nih_log!("AU Creating audio-only plugin instance");
+        }
 
         Box::new(Self {
             vtable: vtable as *const _,
@@ -69,6 +80,7 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
         0 // noErr
     }
 
+
     /// The Lookup callback - returns function pointers for various selectors
     unsafe extern "C" fn lookup(selector: i16) -> *const c_void {
         use super::selectors::AudioUnitSelector;
@@ -81,11 +93,17 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
             }
         };
 
-        nih_debug_assert!(
-            selector_enum.is_required_for_effect(),
-            "AU lookup called for optional selector: {}",
-            selector_enum.name()
+        // Check if this selector is appropriate for the plugin type
+        // For now, we'll allow all selectors, but in a full implementation
+        // we would check the component type and only allow appropriate selectors
+        let is_midi_selector = matches!(
+            selector_enum,
+            AudioUnitSelector::MIDIInput | AudioUnitSelector::StartNote | AudioUnitSelector::StopNote
         );
+        
+        if is_midi_selector {
+            nih_log!("AU lookup called for MIDI selector: {}", selector_enum.name());
+        }
 
         // Return function pointers for each selector
         match selector_enum {
@@ -98,6 +116,9 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
             AudioUnitSelector::ScheduleParameters => Self::au_schedule_parameters as *const c_void,
             AudioUnitSelector::Render => Self::au_render as *const c_void,
             AudioUnitSelector::Reset => Self::au_reset as *const c_void,
+            AudioUnitSelector::MIDIInput => super::midi::AudioComponentPlugInInstance::<P>::au_midi_input as *const c_void,
+            AudioUnitSelector::StartNote => super::midi::AudioComponentPlugInInstance::<P>::au_start_note as *const c_void,
+            AudioUnitSelector::StopNote => super::midi::AudioComponentPlugInInstance::<P>::au_stop_note as *const c_void,
             _ => {
                 nih_log!("AU lookup: selector {} not yet implemented", selector_enum.name());
                 std::ptr::null()
