@@ -33,7 +33,7 @@ For each iteration, follow this process:
 - Read the latest handoff from ./@handoffs/ directory
 
 ### Step 2: Check Tool Configuration
-- Read .ralph/config.json
+- Read ./.ralph/config.json
 - Extract the "tool" field (either "claude-code" or "cursor")
 - This determines which agent type to spawn
 
