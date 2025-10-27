@@ -569,41 +569,51 @@ fn bundle_plugin(
         eprintln!("Created a VST3 bundle at '{}'", vst3_bundle_home.display());
     }
     if bundle_auv3 {
-        let auv3_bundle_library_name = auv3_bundle_library_name(&bundle_name, compilation_target);
-        let auv3_lib_path = bundle_home_dir.join(&auv3_bundle_library_name);
+        // For AUv3, we need to use the Swift Xcode build approach instead of regular bundling
+        eprintln!("Building AUv3 plugin using Swift Xcode project...");
+        xcode_build_auv3(package)?;
+        
+        // Copy the built .appex to the target directory
+        let swift_dir = Path::new("src/wrapper/auv3/swift");
+        let built_appex = swift_dir.join("build/Debug/NIHPlugAUv3.appex");
+        let target_appex = bundle_home_dir.join(format!("{}.appex", package));
+        
+        if built_appex.exists() {
+            // Remove existing target if it exists
+            if target_appex.exists() {
+                std::fs::remove_dir_all(&target_appex)?;
+            }
+            
+            // Copy the built .appex to target directory
+            std::fs::create_dir_all(&target_appex.parent().unwrap())?;
+            std::process::Command::new("cp")
+                .arg("-R")
+                .arg(&built_appex)
+                .arg(&target_appex)
+                .status()
+                .context("Failed to copy .appex bundle")?;
+            
+            // Update the Info.plist with plugin-specific metadata
+            generate_auv3_infoplist(
+                package,
+                &bundle_name,
+                &target_appex,
+                "Test Gain AUv3",  // plugin_name
+                "NIH-Plug",        // plugin_vendor
+                "1.0.0",           // plugin_version
+                "https://github.com/robbert-vdh/nih-plug", // plugin_url
+                "info@example.com", // plugin_email
+                0x61756D75,        // au_type: 'aumu' (Audio Unit Music Effect)
+                0x4E706C67,        // au_subtype: 'Nplg' (NIH-Plug identifier - mixed case)
+                0x4E504C47,        // au_manufacturer: 'NPLG' (NIH-Plug manufacturer)
+            )?;
 
-        fs::create_dir_all(auv3_lib_path.parent().unwrap())
-            .context("Could not create AUv3 bundle directory")?;
-        util::reflink_or_combine(lib_paths, &auv3_lib_path, compilation_target)
-            .context("Could not create AUv3 bundle")?;
+            maybe_codesign(&target_appex, compilation_target);
 
-        let auv3_bundle_home = bundle_home_dir.join(
-            Path::new(&auv3_bundle_library_name)
-                .components()
-                .next()
-                .expect("Malformed AUv3 library path"),
-        );
-
-        // Generate AUv3-specific Info.plist with plugin metadata
-        // For now, use hardcoded values - in a full implementation, these would be extracted
-        // from the plugin library using FFI calls
-        generate_auv3_infoplist(
-            package,
-            &bundle_name,
-            &auv3_bundle_home,
-            "Test Gain AUv3",  // plugin_name
-            "NIH-Plug",        // plugin_vendor
-            "1.0.0",           // plugin_version
-            "https://github.com/robbert-vdh/nih-plug", // plugin_url
-            "info@example.com", // plugin_email
-            0x61756D75,        // au_type: 'aumu' (Audio Unit Music Effect)
-            0x4E706C67,        // au_subtype: 'Nplg' (NIH-Plug identifier - mixed case)
-            0x4E504C47,        // au_manufacturer: 'NPLG' (NIH-Plug manufacturer)
-        )?;
-
-        maybe_codesign(&auv3_bundle_home, compilation_target);
-
-        eprintln!("Created an AUv3 bundle at '{}'", auv3_bundle_home.display());
+            eprintln!("Created an AUv3 bundle at '{}'", target_appex.display());
+        } else {
+            anyhow::bail!("AUv3 build failed - .appex not found at '{}'", built_appex.display());
+        }
     }
     if !bundled_plugin {
         eprintln!("Not creating any plugin bundles because the package does not export any plugins")
@@ -959,31 +969,31 @@ pub fn generate_auv3_infoplist(
 <plist version="1.0">
 <dict>
     <key>CFBundleDevelopmentRegion</key>
-    <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <string>en</string>
     <key>CFBundleDisplayName</key>
     <string>{display_name}</string>
     <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
+    <string>NIHPlugAUv3</string>
     <key>CFBundleIdentifier</key>
-    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <string>com.nih-plug.{package}</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
+    <string>{plugin_name}</string>
     <key>CFBundlePackageType</key>
-    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+    <string>XPC!</string>
     <key>CFBundleShortVersionString</key>
     <string>{plugin_version}</string>
     <key>CFBundleVersion</key>
     <string>{plugin_version}</string>
     <key>LSMinimumSystemVersion</key>
-    <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+    <string>10.11</string>
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionPointIdentifier</key>
         <string>com.apple.AudioUnit-UI</string>
         <key>NSExtensionPrincipalClass</key>
-        <string>$(PRODUCT_MODULE_NAME).AUAudioUnit</string>
+        <string>NIHPlugAUv3.AUAudioUnit</string>
     </dict>
     <key>AudioComponents</key>
     <array>
@@ -1046,6 +1056,34 @@ pub fn maybe_codesign(bundle_home: &Path, target: CompilationTarget) {
         .arg("-delete")
         .status();
 
+    // For AUv3 bundles (.appex), we need to sign the binary first, then the bundle
+    if bundle_home.extension().and_then(|s| s.to_str()) == Some("appex") {
+        // Sign the binary inside the bundle first
+        let binary_path = bundle_home.join("Contents/MacOS").join(
+            bundle_home.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("unknown")
+        );
+        
+        if binary_path.exists() {
+            let binary_success = Command::new("codesign")
+                .arg("-f")
+                .arg("-s")
+                .arg("-")
+                .arg(&binary_path)
+                .status()
+                .is_ok();
+            
+            if !binary_success {
+                eprintln!(
+                    "WARNING: Could not self-sign binary '{}'",
+                    binary_path.display()
+                );
+            }
+        }
+    }
+
+    // Sign the bundle itself
     let success = Command::new("codesign")
         .arg("-f")
         .arg("-s")

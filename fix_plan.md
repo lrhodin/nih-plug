@@ -108,8 +108,9 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 - [x] Build test AUv3 plugin (e.g., gain example with AUv3 export)
 - [x] Run pluginval in headless mode at strictness level 5
 - [x] Fix Audio Unit interface implementation issues (plugin not recognized by system)
-- [ ] Fix code signing issues preventing proper testing
+- [x] Fix code signing issues preventing proper testing
 - [x] Fix Audio Unit registration and recognition
+- [ ] Debug plugin recognition issues (plugin not appearing in system)
 - [ ] Document validation results in handoff
 - [ ] **CHECKPOINT: Plugin passes pluginval strictness level 5**
 

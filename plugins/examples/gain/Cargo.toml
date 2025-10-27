@@ -6,7 +6,7 @@ authors = ["Robbert van der Helm <mail@robbertvanderhelm.nl>"]
 license = "ISC"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["staticlib"]
 
 [dependencies]
 nih_plug = { path = "../../../", features = ["assert_process_allocs", "auv3"] }
