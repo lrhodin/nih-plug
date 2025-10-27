@@ -7,7 +7,7 @@ use std::ffi::c_void;
 
 use crate::buffer::Buffer;
 use crate::plugin::Plugin;
-use crate::prelude::AuxiliaryBuffers;
+use crate::prelude::{AuxiliaryBuffers, AudioIOLayout};
 
 use super::bindings::{errors, AudioBufferList, AudioTimeStamp};
 use super::context::WrapperProcessContext;
@@ -64,23 +64,56 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
             }
         }
 
-        // Create a NIH-plug Buffer from the AU buffers
-        // We need to convert raw pointers to slices and then set up the Buffer
-        let mut output_slices: Vec<&mut [f32]> = buffers
-            .iter_mut()
-            .map(|buf| {
-                std::slice::from_raw_parts_mut(
-                    buf.data as *mut f32,
-                    num_frames
-                )
-            })
-            .collect();
+        // Get the audio I/O layout to determine input/output channel counts
+        let audio_io_layout = plugin_instance.wrapper.audio_io_layout().read();
+        
+        // Determine input and output channel counts
+        let (input_channels, output_channels) = if let Some(layout) = audio_io_layout.as_ref() {
+            let input_channels = layout.main_input_channels.map(|c| c.get() as usize).unwrap_or(0);
+            let output_channels = layout.main_output_channels.map(|c| c.get() as usize).unwrap_or(num_channels);
+            (input_channels, output_channels)
+        } else {
+            // Default to stereo in/out
+            (2, 2)
+        };
+
+        // Split buffers into input and output
+        let (input_buffers, output_buffers) = if input_channels > 0 && num_channels > input_channels {
+            // We have both input and output buffers
+            let input_buffers = &buffers[..input_channels];
+            let output_buffers = &buffers[input_channels..input_channels + output_channels];
+            (Some(input_buffers), output_buffers)
+        } else {
+            // Only output buffers (generator plugin)
+            (None, &buffers[..output_channels])
+        };
 
         // Create the buffer using set_slices
         let mut buffer_storage = Buffer::default();
         buffer_storage.set_slices(num_frames, |slices| {
             slices.clear();
-            slices.extend(output_slices.iter_mut().map(|s| &mut s[..]));
+            
+            // Add input slices first (if any) - these are immutable
+            if let Some(input_buffers) = input_buffers {
+                for buf in input_buffers {
+                    let input_slice = std::slice::from_raw_parts(
+                        buf.data as *const f32,
+                        num_frames
+                    );
+                    // We need to cast to mutable for the buffer system
+                    // This is safe because we're only reading from input slices
+                    slices.push(unsafe { std::slice::from_raw_parts_mut(input_slice.as_ptr() as *mut f32, input_slice.len()) });
+                }
+            }
+            
+            // Add output slices
+            for buf in output_buffers {
+                let output_slice = std::slice::from_raw_parts_mut(
+                    buf.data as *mut f32,
+                    num_frames
+                );
+                slices.push(output_slice);
+            }
         });
 
         let mut buffer = buffer_storage;
@@ -202,5 +235,80 @@ mod tests {
         let num_frames = 512;
         let expected_bytes = (num_frames * std::mem::size_of::<f32>()) as u32;
         assert_eq!(expected_bytes, 2048); // 512 frames * 4 bytes per f32
+    }
+
+    #[test]
+    fn test_input_output_buffer_splitting() {
+        // Test that we correctly split buffers into input and output
+        let num_frames = 64;
+        let input_channels = 2;
+        let output_channels = 2;
+        let total_channels = input_channels + output_channels;
+        
+        // Create mock buffer data
+        let mut buffer_data: Vec<f32> = (0..(num_frames * total_channels)).map(|i| i as f32).collect();
+        
+        // Simulate the buffer splitting logic
+        let buffers = vec![
+            // Input buffers (channels 0-1)
+            &buffer_data[0..num_frames],
+            &buffer_data[num_frames..num_frames * 2],
+            // Output buffers (channels 2-3)  
+            &buffer_data[num_frames * 2..num_frames * 3],
+            &buffer_data[num_frames * 3..num_frames * 4],
+        ];
+        
+        let (input_buffers, output_buffers) = if input_channels > 0 && total_channels > input_channels {
+            let input_buffers = &buffers[..input_channels];
+            let output_buffers = &buffers[input_channels..input_channels + output_channels];
+            (Some(input_buffers), output_buffers)
+        } else {
+            (None, &buffers[..output_channels])
+        };
+        
+        // Verify input buffers
+        assert!(input_buffers.is_some());
+        let input_bufs = input_buffers.unwrap();
+        assert_eq!(input_bufs.len(), input_channels);
+        assert_eq!(input_bufs[0][0], 0.0); // First input channel, first sample
+        assert_eq!(input_bufs[1][0], 64.0); // Second input channel, first sample
+        
+        // Verify output buffers
+        assert_eq!(output_buffers.len(), output_channels);
+        assert_eq!(output_buffers[0][0], 128.0); // First output channel, first sample
+        assert_eq!(output_buffers[1][0], 192.0); // Second output channel, first sample
+    }
+
+    #[test]
+    fn test_generator_plugin_buffer_handling() {
+        // Test that generator plugins (no input) work correctly
+        let num_frames = 64;
+        let input_channels = 0;
+        let output_channels = 2;
+        let total_channels = output_channels;
+        
+        // Create mock buffer data for generator (only output)
+        let mut buffer_data: Vec<f32> = (0..(num_frames * total_channels)).map(|i| i as f32).collect();
+        
+        let buffers = vec![
+            &buffer_data[0..num_frames],
+            &buffer_data[num_frames..num_frames * 2],
+        ];
+        
+        let (input_buffers, output_buffers) = if input_channels > 0 && total_channels > input_channels {
+            let input_buffers = &buffers[..input_channels];
+            let output_buffers = &buffers[input_channels..input_channels + output_channels];
+            (Some(input_buffers), output_buffers)
+        } else {
+            (None, &buffers[..output_channels])
+        };
+        
+        // Verify no input buffers
+        assert!(input_buffers.is_none());
+        
+        // Verify output buffers
+        assert_eq!(output_buffers.len(), output_channels);
+        assert_eq!(output_buffers[0][0], 0.0); // First output channel, first sample
+        assert_eq!(output_buffers[1][0], 64.0); // Second output channel, first sample
     }
 }

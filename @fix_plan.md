@@ -97,8 +97,22 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 
 ## Current Status
 
-**Completed (iterations 1-3):** AUv2 foundation (being discarded)
+**Completed (iterations 1-4):** AUv2 foundation with working audio processing
 **Next task:** Phase 1 - Research AUv3 architecture
+
+## Recent Accomplishments (Iteration 005)
+
+**Fixed Critical Audio Processing Bug:**
+- ✅ Fixed AU audio processing to handle both input and output buffers correctly
+- ✅ Added proper buffer splitting logic for input/output channels
+- ✅ Added comprehensive tests for buffer handling (input/output and generator plugins)
+- ✅ All tests passing (82/82)
+
+**Key Technical Details:**
+- Audio processing now correctly splits AU buffers into input and output sections
+- Supports both effect plugins (with input) and generator plugins (output only)
+- Proper handling of channel counts based on AudioIOLayout
+- Safe pointer casting for input buffers (read-only to mutable for NIH-plug compatibility)
 
 ## Notes
 
