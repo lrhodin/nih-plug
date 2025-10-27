@@ -7,6 +7,7 @@ use std::ffi::c_void;
 use std::ptr;
 
 use crate::plugin::Plugin;
+use crate::wrapper::util::hash_param_id;
 
 use super::bindings::{errors, property_ids, scopes, AudioStreamBasicDescription};
 use super::factory::AudioComponentPlugInInstance;
@@ -350,23 +351,42 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
     ///
     /// # Safety
     /// This function operates on raw pointers.
-    #[allow(unused_variables)]
     unsafe fn get_parameter_list(
         instance: &Self,
         data: *mut c_void,
         data_size: *mut u32,
     ) -> i32 {
-        // TODO: Implement parameter list retrieval
-        // This requires proper integration with NIH-plug's parameter system
-
-        // For now, return an empty list
-        let num_params = 0;
+        // Get the plugin's parameters
+        let params = instance.wrapper.plugin().read();
+        let param_map = params.params().param_map();
+        
+        // Create list of parameter IDs (hashed)
+        let param_ids: Vec<u32> = param_map
+            .iter()
+            .map(|(id, _ptr, _group)| hash_param_id(id))
+            .collect();
+        
+        let num_params = param_ids.len();
         let required_size = (num_params * std::mem::size_of::<u32>()) as u32;
 
         // If data is null, just return the required size
         if data.is_null() {
             *data_size = required_size;
             return errors::NO_ERR;
+        }
+
+        // Check if the provided buffer is large enough
+        if *data_size < required_size {
+            return errors::K_AUDIO_UNIT_ERR_INVALID_PARAMETER;
+        }
+
+        // Copy the parameter IDs to the output buffer
+        if num_params > 0 {
+            let output_slice = std::slice::from_raw_parts_mut(
+                data as *mut u32,
+                num_params
+            );
+            output_slice.copy_from_slice(&param_ids);
         }
 
         *data_size = required_size;

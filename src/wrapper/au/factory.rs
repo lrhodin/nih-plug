@@ -14,7 +14,7 @@ use crate::plugin::Plugin;
 /// This is the structure that gets returned from the factory function.
 /// The Audio Component system expects a specific memory layout with function pointers.
 #[repr(C)]
-pub(crate) struct AudioComponentPlugInInstance<P: Plugin> {
+pub struct AudioComponentPlugInInstance<P: Plugin> {
     /// Pointer to the function table (required by AU API)
     pub vtable: *const AudioComponentPlugInInterface,
     /// The actual plugin wrapper

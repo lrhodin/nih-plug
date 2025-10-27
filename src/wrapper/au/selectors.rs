@@ -131,7 +131,7 @@ mod tests {
             AudioUnitSelector::from_i16(0x000E),
             Some(AudioUnitSelector::Render)
         );
-        assert_eq!(AudioUnitSelector::from_i16(0xFFFF), None);
+        assert_eq!(AudioUnitSelector::from_i16(0xFFFFu16 as i16), None);
     }
 
     #[test]

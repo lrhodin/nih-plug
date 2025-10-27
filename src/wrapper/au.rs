@@ -73,6 +73,7 @@ macro_rules! nih_export_au {
             // Generate the factory function
             // The name should match what's specified in your Info.plist under
             // AudioComponents -> factory
+            // For a plugin called "MyPlugin", the factory function will be "MyPluginFactory"
             $crate::au_factory_function!($plugin_ty, AU_FACTORY);
         }
 

@@ -2352,6 +2352,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "gain_au_test"
+version = "0.1.0"
+dependencies = [
+ "nih_plug",
+]
+
+[[package]]
 name = "gain_gui_egui"
 version = "0.1.0"
 dependencies = [
