@@ -61,10 +61,10 @@ Use the Task tool to spawn a Cursor launcher agent:
 - prompt: Create a prompt like this:
 
 ```
-You are a Cursor CLI Launcher for Ralph iteration NNN.
+You are a Cursor Agent CLI Launcher for Ralph iteration NNN.
 
 ## Your Mission
-Launch Cursor in composer mode to implement one complete task, then verify completion.
+Launch cursor-agent in headless mode to implement one complete task, then verify completion.
 
 ## Steps
 
@@ -72,16 +72,18 @@ Launch Cursor in composer mode to implement one complete task, then verify compl
    - Write the implementation prompt to a temporary file: /tmp/ralph_iteration_NNN_prompt.md
    - The prompt content is below under "Implementation Prompt"
 
-2. **Launch Cursor Composer**
+2. **Launch Cursor Agent**
    Use Bash tool to run:
    ```bash
-   cursor --composer --prompt-file /tmp/ralph_iteration_NNN_prompt.md --wait
+   export CURSOR_API_KEY="${CURSOR_API_KEY:-key_not_set}" && cursor-agent --print --force --output-format json "$(cat /tmp/ralph_iteration_NNN_prompt.md)"
    ```
 
    Note:
-   - --composer: Uses Cursor's composer mode (equivalent to Cursor's agent mode)
-   - --prompt-file: Passes our implementation prompt
-   - --wait: Blocks until Cursor completes
+   - Requires CURSOR_API_KEY environment variable to be set
+   - --print: Non-interactive/headless mode
+   - --force: Auto-approve file changes and commands
+   - --output-format json: Returns structured JSON for easier parsing
+   - Reads prompt from the temp file and passes it directly
 
 3. **Monitor Completion**
    After Cursor finishes, verify:
@@ -262,3 +264,4 @@ The key difference: For Cursor, you wrap the implementation prompt inside the la
 
 Start by reading the current state and beginning iteration 1.
 Run autonomously until project completion.
+
