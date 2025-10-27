@@ -101,10 +101,7 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
                 // TODO: Return pointer to set_parameter function
                 std::ptr::null()
             }
-            AudioUnitSelector::Render => {
-                // TODO: Return pointer to render function
-                std::ptr::null()
-            }
+            AudioUnitSelector::Render => Self::au_render as *const c_void,
             AudioUnitSelector::Reset => Self::au_reset as *const c_void,
             _ => {
                 nih_log!("AU lookup: selector {} not yet implemented", selector_enum.name());

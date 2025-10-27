@@ -17,8 +17,8 @@
 - [x] Implement Initialize/Uninitialize callbacks
 - [x] Implement GetProperty/SetProperty for basic properties
 - [x] Implement Reset callback
-- [ ] Implement audio rendering (Render callback)
-- [ ] Implement buffer handling for AU format
+- [x] Implement audio rendering (Render callback)
+- [x] Implement buffer handling for AU format
 - [ ] Test: Plugin processes audio in DAW
 
 ## Phase 3: Parameter System (CHECKPOINT: Parameters work in DAW)

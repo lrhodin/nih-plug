@@ -6,6 +6,7 @@
 #[macro_use]
 mod util;
 
+mod audio;
 pub mod bindings;
 mod callbacks;
 mod context;

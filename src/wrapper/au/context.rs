@@ -42,9 +42,35 @@ impl<P: Plugin> InitContext<P> for WrapperInitContext<'_, P> {
 
 /// A [`ProcessContext`] implementation for the Audio Unit wrapper.
 pub(crate) struct WrapperProcessContext<'a, P: Plugin> {
-    pub(super) _plugin: &'a P,
+    pub(super) _phantom: std::marker::PhantomData<&'a P>,
     pub(super) sample_rate: f32,
     pub(super) transport: Transport,
+}
+
+impl<'a, P: Plugin> WrapperProcessContext<'a, P> {
+    /// Create a new process context from an AudioComponentPlugInInstance.
+    ///
+    /// This extracts the necessary information (sample rate, transport) from the plugin instance.
+    pub(crate) fn new(
+        instance: &'a super::factory::AudioComponentPlugInInstance<P>,
+    ) -> Self {
+        let sample_rate = instance
+            .wrapper
+            .buffer_config()
+            .read()
+            .as_ref()
+            .map(|cfg| cfg.sample_rate)
+            .unwrap_or(44100.0);
+
+        // TODO: Extract transport info from AU host
+        let transport = Transport::new(sample_rate);
+
+        Self {
+            _phantom: std::marker::PhantomData,
+            sample_rate,
+            transport,
+        }
+    }
 }
 
 impl<P: Plugin> ProcessContext<P> for WrapperProcessContext<'_, P> {

@@ -57,15 +57,29 @@ Follow this loop precisely:
    - Git commit with descriptive message about what was accomplished
    - Commit message should explain WHAT and WHY
 
-7. **Run context check**
-   - Check your token usage
-   - If context > 65%: prepare handoff (see below)
+7. **Check if handoff needed** (CRITICAL - prevents context overflow)
 
-8. **If context < 65%:** Loop back to step 1
+   After completing each task, check if you should create a handoff:
+
+   **If you can see <system-reminder> tags (Claude Code):**
+   - Look at your most recent <system-reminder> for token usage
+   - Example: "<system-reminder>Token usage: 130000/200000; 70000 remaining</system-reminder>"
+   - Calculate: 130000 / 200000 = 65%
+   - Handoff if: tokens >= 65% (130k) OR tasks_completed >= 5
+
+   **If you cannot see <system-reminder> tags (Cursor):**
+   - Count tasks completed this iteration
+   - Handoff if: tasks_completed >= 3
+
+   **Also handoff if:**
+   - You've reached a natural testing checkpoint
+   - Human verification is needed
+
+8. **If no handoff needed:** Loop back to step 1
 
 ## Handoff Preparation
 
-When context usage exceeds 65%, prepare for the next iteration:
+When any handoff condition is met (see step 7), prepare for the next iteration:
 
 1. **Create handoff note:** `@handoffs/iteration_XXX.md` with:
 
@@ -78,6 +92,11 @@ How confident are you in the current state? Be honest.
 - 40-60: Uncertain, need review
 - 60-80: Good progress, minor concerns
 - 80-100: Excellent state, high confidence
+
+## Context Usage
+- Tasks completed this iteration: [count]
+- Token usage: [if visible, e.g., "130k/200k (65%)"]
+- Reason for handoff: [65% tokens | task limit | testing checkpoint]
 
 ## Health Check
 - [ ] All tests passing?

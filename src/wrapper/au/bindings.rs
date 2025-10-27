@@ -171,6 +171,80 @@ impl AudioStreamBasicDescription {
     }
 }
 
+/// Audio buffer structure used in AudioBufferList
+///
+/// Represents a single channel or interleaved buffer of audio data.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct AudioBuffer {
+    /// Number of interleaved channels in the buffer
+    pub number_channels: u32,
+    /// Size of the buffer in bytes
+    pub data_bytes_size: u32,
+    /// Pointer to the audio data
+    pub data: *mut c_void,
+}
+
+/// Audio buffer list structure
+///
+/// A variable-length structure that contains multiple audio buffers.
+/// For non-interleaved audio, each buffer contains one channel.
+#[repr(C)]
+pub struct AudioBufferList {
+    /// Number of buffers in the list
+    pub number_buffers: u32,
+    /// Array of buffers (variable length)
+    pub buffers: [AudioBuffer; 1],
+}
+
+impl AudioBufferList {
+    /// Get a slice of the buffers in this list.
+    ///
+    /// # Safety
+    /// This is unsafe because AudioBufferList is a variable-length structure.
+    /// The caller must ensure that number_buffers is correct.
+    pub unsafe fn buffers(&self) -> &[AudioBuffer] {
+        std::slice::from_raw_parts(self.buffers.as_ptr(), self.number_buffers as usize)
+    }
+
+    /// Get a mutable slice of the buffers in this list.
+    ///
+    /// # Safety
+    /// This is unsafe because AudioBufferList is a variable-length structure.
+    /// The caller must ensure that number_buffers is correct.
+    pub unsafe fn buffers_mut(&mut self) -> &mut [AudioBuffer] {
+        std::slice::from_raw_parts_mut(self.buffers.as_mut_ptr(), self.number_buffers as usize)
+    }
+}
+
+/// Audio timestamp structure
+///
+/// Contains timing information for audio rendering.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct AudioTimeStamp {
+    /// Sample time
+    pub sample_time: f64,
+    /// Host time (mach_absolute_time)
+    pub host_time: u64,
+    /// Rate scalar for adjusting timing
+    pub rate_scalar: f64,
+    /// Word clock time
+    pub word_clock_time: u64,
+    /// SMPTE time
+    pub smpte_time: [u32; 8],
+    /// Flags indicating which fields are valid
+    pub flags: u32,
+    /// Reserved
+    pub reserved: u32,
+}
+
+/// Render action flags
+pub mod render_flags {
+    /// Indicates that rendering is complete
+    pub const K_AUDIO_UNIT_RENDER_ACTION_OUTPUT_IS_SILENCE: u32 = 1 << 4;
+}
+
 /// The factory function signature for creating Audio Unit instances
 ///
 /// This function is called by the Audio Component system to create new instances
