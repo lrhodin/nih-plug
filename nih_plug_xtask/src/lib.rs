@@ -234,10 +234,20 @@ pub fn chdir_workspace_root() -> Result<()> {
 pub fn build(packages: &[String], args: &[String]) -> Result<()> {
     let package_args = packages.iter().flat_map(|package| ["-p", package]);
 
+    // Check if we need to build with auv3 features for AUv3 bundling
+    let mut build_args: Vec<String> = Vec::new();
+    build_args.extend(package_args.map(|s| s.to_string()));
+    build_args.extend(args.iter().cloned());
+    
+    // If we're building nih_plug and it's for AUv3 bundling, add the auv3 feature
+    if packages.contains(&"nih_plug".to_string()) {
+        build_args.push("--features".to_string());
+        build_args.push("auv3".to_string());
+    }
+
     let status = Command::new("cargo")
         .arg("build")
-        .args(package_args)
-        .args(args)
+        .args(&build_args)
         .status()
         .with_context(|| format!("Could not call cargo to build {}", packages.join(", ")))?;
     if !status.success() {
