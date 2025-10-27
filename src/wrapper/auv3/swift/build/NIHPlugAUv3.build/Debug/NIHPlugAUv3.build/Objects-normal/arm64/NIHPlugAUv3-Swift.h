@@ -302,12 +302,27 @@ typedef unsigned int swift_uint4  __attribute__((__ext_vector_type__(4)));
 
 #if defined(__OBJC__)
 
-/// Main AUAudioUnit subclass for NIH-Plug AUv3 integration.
+@class AUParameterTree;
+@class AUAudioUnitBusArray;
+/// Minimal AUv3 test plugin to isolate recognition issues.
+/// This plugin implements only the absolute basics required for AUv3 recognition.
 SWIFT_CLASS("_TtC11NIHPlugAUv311NIHPlugAUv3")
 @interface NIHPlugAUv3 : AUAudioUnit
-- (nullable instancetype)initWithComponentDescription:(AudioComponentDescription)componentDescription error:(NSError * _Nullable * _Nullable)error OBJC_DESIGNATED_INITIALIZER;
-@property (nonatomic, copy) AUInternalRenderBlock _Nonnull internalRenderBlock;
-- (nullable instancetype)initWithComponentDescription:(AudioComponentDescription)componentDescription options:(AudioComponentInstantiationOptions)options error:(NSError * _Nullable * _Nullable)error SWIFT_UNAVAILABLE;
++ (AUAudioUnit * _Nullable)createAudioUnitWithComponentDescription:(AudioComponentDescription)componentDescription SWIFT_WARN_UNUSED_RESULT;
+- (nullable instancetype)initWithComponentDescription:(AudioComponentDescription)componentDescription options:(AudioComponentInstantiationOptions)options error:(NSError * _Nullable * _Nullable)error OBJC_DESIGNATED_INITIALIZER;
+@property (nonatomic, strong) AUParameterTree * _Nullable parameterTree;
+@property (nonatomic, readonly, strong) AUAudioUnitBusArray * _Nonnull inputBusses;
+@property (nonatomic, readonly, strong) AUAudioUnitBusArray * _Nonnull outputBusses;
+/// Indicates whether the audio unit can process audio in-place.
+@property (nonatomic, readonly) BOOL canProcessInPlace;
+/// Maximum number of frames the audio unit can render in a single call.
+@property (nonatomic) AUAudioFrameCount maximumFramesToRender;
+- (BOOL)allocateRenderResourcesAndReturnError:(NSError * _Nullable * _Nullable)error;
+- (void)deallocateRenderResources;
+- (void)reset;
+@property (nonatomic, readonly, copy) AUInternalRenderBlock _Nonnull internalRenderBlock;
+/// Alternative registration method that might be needed for some systems
++ (void)registerAudioUnit;
 @end
 
 #endif
