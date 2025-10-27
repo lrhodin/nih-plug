@@ -15,6 +15,12 @@ import AudioToolbox
 /// It handles parameter management, audio processing, and state management.
 @objc public class NIHPlugAUv3: AUAudioUnit {
     
+    // MARK: - Audio Unit Registration
+    
+    // Note: AUv3 registration is handled through Info.plist configuration
+    // The NSExtensionPrincipalClass points to this class, and the AudioComponents
+    // section in Info.plist defines the Audio Unit metadata
+    
     // MARK: - Audio Unit Factory
     
     @objc public static func createAudioUnit(componentDescription: AudioComponentDescription) -> AUAudioUnit? {
@@ -297,6 +303,14 @@ import AudioToolbox
         
         return value
     }
+}
+
+// MARK: - Audio Unit Registration Entry Point
+
+/// Main entry point for Audio Unit registration.
+/// This function is called when the extension is loaded.
+@objc public func registerNIHPlugAudioUnit() {
+    NIHPlugAUv3.registerAudioUnit()
 }
 
 // MARK: - FFI Function Declarations

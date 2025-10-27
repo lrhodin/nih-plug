@@ -105,6 +105,10 @@ int32_t plugin_get_metadata(void* handle, const char** name, const char** vendor
 /// @return 0 on success, negative error code on failure
 int32_t plugin_get_au_codes(void* handle, uint32_t* au_type, uint32_t* au_subtype, uint32_t* au_manufacturer);
 
+/// Register the NIH-Plug Audio Unit with the system.
+/// This must be called when the extension is loaded.
+void registerNIHPlugAudioUnit(void);
+
 // MARK: - C Structure Definitions
 
 /// Parameter information structure for FFI.

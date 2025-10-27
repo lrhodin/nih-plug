@@ -20,7 +20,7 @@
     "overrides" : {
       "commandLine" : {
         "table" : {
-
+          "CODE_SIGN_IDENTITY" : ""
         }
       },
       "synthesized" : {
