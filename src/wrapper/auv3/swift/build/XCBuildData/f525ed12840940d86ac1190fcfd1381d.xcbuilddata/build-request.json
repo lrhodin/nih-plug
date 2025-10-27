@@ -20,7 +20,8 @@
     "overrides" : {
       "commandLine" : {
         "table" : {
-
+          "CODE_SIGN_IDENTITY" : "",
+          "CODE_SIGNING_REQUIRED" : "NO"
         }
       },
       "synthesized" : {

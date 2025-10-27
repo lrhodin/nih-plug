@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		A1234567890123456789012A /* AUAudioUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890123456789012B /* AUAudioUnit.swift */; };
 		A1234567890123456789012C /* NIHPlugAUv3-Bridging-Header.h in Headers */ = {isa = PBXBuildFile; fileRef = A1234567890123456789012D /* NIHPlugAUv3-Bridging-Header.h */; };
-		// A1234567890123456789012E /* libnih_plug_universal.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A1234567890123456789012F /* libnih_plug_universal.a */; };
+		A1234567890123456789012E /* libnih_plug_universal.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A1234567890123456789012F /* libnih_plug_universal.a */; };
 		A1234567890123456789013G /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890123456789013H /* main.swift */; };
 /* End PBXBuildFile section */
 
@@ -280,6 +280,11 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NIHPlugAUv3/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)",
+					"$(SRCROOT)/build/Debug",
+				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -308,6 +313,11 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NIHPlugAUv3/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)",
+					"$(SRCROOT)/build/Debug",
+				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

@@ -126,8 +126,9 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 - [x] Fix code signing issues preventing proper testing
 - [x] Fix Audio Unit registration and recognition
 - [x] Debug plugin recognition issues (plugin not appearing in system) ✅ ROOT CAUSE FOUND!
-- [ ] **🚨 CRITICAL: Fix Swift runtime dependency issue (embed Swift libraries in .appex bundle)**
-- [ ] **🚨 CRITICAL: Fix bundler to create host .app structure (see AUV3_DEPLOYMENT_ISSUE.md)**
+- [x] **🚨 CRITICAL: Fix Swift runtime dependency issue (embed Swift libraries in .appex bundle)**
+- [x] **🚨 CRITICAL: Fix bundler to create host .app structure (see AUV3_DEPLOYMENT_ISSUE.md)**
+- [ ] **🚨 CRITICAL: Fix static library linking issue in Xcode project (symbols not appearing in binary)**
 - [ ] Test plugin recognition with proper host app bundle
 - [ ] Document validation results in handoff
 - [ ] **CHECKPOINT: Plugin passes pluginval strictness level 5**

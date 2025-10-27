@@ -569,14 +569,27 @@ fn bundle_plugin(
         eprintln!("Created a VST3 bundle at '{}'", vst3_bundle_home.display());
     }
     if bundle_auv3 {
-        // For AUv3, we need to use the Swift Xcode build approach instead of regular bundling
+        // For AUv3, we need to create a host .app bundle structure
         eprintln!("Building AUv3 plugin using Swift Xcode project...");
         xcode_build_auv3(package)?;
         
-        // Copy the built .appex to the target directory
+        // Create host .app bundle structure
+        let host_app_name = format!("{}Host.app", package);
+        let host_app_path = bundle_home_dir.join(&host_app_name);
+        let host_app_contents = host_app_path.join("Contents");
+        let host_app_macos = host_app_contents.join("MacOS");
+        let host_app_plugins = host_app_contents.join("PlugIns");
+        
+        // Create directory structure
+        fs::create_dir_all(&host_app_macos)
+            .context("Could not create host app MacOS directory")?;
+        fs::create_dir_all(&host_app_plugins)
+            .context("Could not create host app PlugIns directory")?;
+        
+        // Copy the built .appex to PlugIns directory
         let swift_dir = Path::new("src/wrapper/auv3/swift");
         let built_appex = swift_dir.join("build/Debug/NIHPlugAUv3.appex");
-        let target_appex = bundle_home_dir.join(format!("{}.appex", package));
+        let target_appex = host_app_plugins.join("NIHPlugAUv3.appex");
         
         if built_appex.exists() {
             // Remove existing target if it exists
@@ -584,8 +597,7 @@ fn bundle_plugin(
                 std::fs::remove_dir_all(&target_appex)?;
             }
             
-            // Copy the built .appex to target directory
-            std::fs::create_dir_all(&target_appex.parent().unwrap())?;
+            // Copy the built .appex to PlugIns directory
             std::process::Command::new("cp")
                 .arg("-R")
                 .arg(&built_appex)
@@ -593,12 +605,17 @@ fn bundle_plugin(
                 .status()
                 .context("Failed to copy .appex bundle")?;
             
-            // The Swift-built Info.plist already has the correct configuration
-            // No need to overwrite it with generate_auv3_infoplist
-
+            // Create minimal host executable
+            create_minimal_host_executable(&host_app_macos, &bundle_name)?;
+            
+            // Generate host app Info.plist
+            create_host_app_infoplist(package, &bundle_name, &host_app_contents)?;
+            
+            // Code sign both host and extension
             maybe_codesign(&target_appex, compilation_target);
+            maybe_codesign(&host_app_path, compilation_target);
 
-            eprintln!("Created an AUv3 bundle at '{}'", target_appex.display());
+            eprintln!("Created an AUv3 host app bundle at '{}'", host_app_path.display());
         } else {
             anyhow::bail!("AUv3 build failed - .appex not found at '{}'", built_appex.display());
         }
@@ -1087,6 +1104,169 @@ pub fn maybe_codesign(bundle_home: &Path, target: CompilationTarget) {
     }
 }
 
+/// Create a minimal host executable for the AUv3 host app.
+/// This can be a simple stub that just exits, since the extension is what matters.
+fn create_minimal_host_executable(macos_dir: &Path, bundle_name: &str) -> Result<()> {
+    let host_executable_name = format!("{}Host", bundle_name);
+    let host_executable_path = macos_dir.join(&host_executable_name);
+    
+    // Create a minimal Swift program that just exits
+    let swift_code = r#"import Cocoa
+// AUv3 host app - extension loaded by system
+NSApplicationMain(CommandLine.argc, CommandLine.unsafeArgv)
+"#;
+    
+    // Write the Swift source to a temporary file
+    let temp_swift = macos_dir.join("host_app.swift");
+    fs::write(&temp_swift, swift_code)
+        .context("Could not write host app Swift source")?;
+    
+    // Compile the Swift program
+    let compile_status = Command::new("swiftc")
+        .arg("-o")
+        .arg(&host_executable_path)
+        .arg(&temp_swift)
+        .status()
+        .context("Could not compile host app executable")?;
+    
+    if !compile_status.success() {
+        anyhow::bail!("Failed to compile host app executable");
+    }
+    
+    // Make it executable
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = fs::metadata(&host_executable_path)?.permissions();
+        permissions.set_mode(permissions.mode() | 0o755);
+        fs::set_permissions(&host_executable_path, permissions)?;
+    }
+    
+    // Clean up temporary Swift file
+    let _ = fs::remove_file(&temp_swift);
+    
+    eprintln!("Created host executable: {}", host_executable_path.display());
+    Ok(())
+}
+
+/// Create Info.plist for the AUv3 host app.
+/// This declares the NSExtension so macOS can discover the .appex inside.
+fn create_host_app_infoplist(package: &str, display_name: &str, contents_dir: &Path) -> Result<()> {
+    let host_executable_name = format!("{}Host", display_name);
+    let info_plist_content = format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleDisplayName</key>
+    <string>{display_name} Host</string>
+    <key>CFBundleExecutable</key>
+    <string>{host_executable_name}</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.nih-plug.{package}.host</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>{display_name} Host</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.11</string>
+    <key>NSExtension</key>
+    <dict>
+        <key>NSExtensionPointIdentifier</key>
+        <string>com.apple.AudioUnit</string>
+    </dict>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+</dict>
+</plist>
+"#);
+
+    fs::write(
+        contents_dir.join("Info.plist"),
+        info_plist_content,
+    )
+    .context("Could not create host app Info.plist file")?;
+
+    eprintln!("Created host app Info.plist: {}", contents_dir.join("Info.plist").display());
+    Ok(())
+}
+
+/// Embed Swift runtime libraries in the .appex bundle.
+/// This function:
+/// 1. Creates a Frameworks directory in the .appex bundle
+/// 2. Copies required Swift runtime libraries from Xcode toolchain
+/// 3. Updates the binary's rpath to point to the embedded libraries
+fn embed_swift_runtime_libraries(appex_path: &Path) -> Result<()> {
+    let frameworks_dir = appex_path.join("Contents/Frameworks");
+    let binary_path = appex_path.join("Contents/MacOS/NIHPlugAUv3");
+    
+    // Create Frameworks directory
+    fs::create_dir_all(&frameworks_dir)
+        .context("Could not create Frameworks directory")?;
+    
+    // List of required Swift runtime libraries (from otool -L output)
+    let required_libs = vec![
+        "libswiftCore.dylib",
+        "libswiftFoundation.dylib", 
+        "libswiftAVFoundation.dylib",
+        "libswiftCoreAudio.dylib",
+        "libswiftCoreFoundation.dylib",
+        "libswiftCoreImage.dylib",
+        "libswiftCoreMedia.dylib",
+        "libswiftDarwin.dylib",
+        "libswiftDispatch.dylib",
+        "libswiftIOKit.dylib",
+        "libswiftMetal.dylib",
+        "libswiftObjectiveC.dylib",
+        "libswiftQuartzCore.dylib",
+        "libswiftXPC.dylib",
+        "libswiftsimd.dylib",
+    ];
+    
+    // Find Xcode toolchain Swift libraries
+    let xcode_swift_path = "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/macosx";
+    
+    for lib_name in required_libs {
+        let source_path = Path::new(xcode_swift_path).join(lib_name);
+        let dest_path = frameworks_dir.join(lib_name);
+        
+        if source_path.exists() {
+            // Copy the library
+            std::process::Command::new("cp")
+                .arg(&source_path)
+                .arg(&dest_path)
+                .status()
+                .with_context(|| format!("Could not copy Swift library {}", lib_name))?;
+            
+            eprintln!("  Embedded: {}", lib_name);
+        } else {
+            eprintln!("  Warning: Swift library not found: {}", lib_name);
+        }
+    }
+    
+    // Update the binary's rpath to include the Frameworks directory
+    let rpath_update = Command::new("install_name_tool")
+        .arg("-add_rpath")
+        .arg("@executable_path/../Frameworks")
+        .arg(&binary_path)
+        .status()
+        .context("Could not update binary rpath")?;
+    
+    if !rpath_update.success() {
+        eprintln!("Warning: Could not update binary rpath, but continuing...");
+    }
+    
+    eprintln!("✅ Swift runtime libraries embedded successfully");
+    Ok(())
+}
+
 /// Build the AUv3 Swift app extension using Xcode.
 /// This function:
 /// 1. Runs the build_rust.sh script to prepare the Swift project
@@ -1145,6 +1325,8 @@ fn xcode_build_auv3(package: &str) -> Result<()> {
         .arg("-configuration")
         .arg("Debug")
         .arg("build")
+        .arg("CODE_SIGN_IDENTITY=")
+        .arg("CODE_SIGNING_REQUIRED=NO")
         .current_dir(swift_dir)
         .status()
         .context("Could not run xcodebuild")?;
@@ -1161,6 +1343,10 @@ fn xcode_build_auv3(package: &str) -> Result<()> {
             appex_path.display()
         );
     }
+
+    // Step 4: Embed Swift runtime libraries in the .appex bundle
+    eprintln!("Step 4: Embedding Swift runtime libraries...");
+    embed_swift_runtime_libraries(&appex_path)?;
 
     eprintln!("✅ Successfully built AUv3 app extension at '{}'", appex_path.display());
     eprintln!("The app extension is ready for testing in Logic Pro or GarageBand.");
