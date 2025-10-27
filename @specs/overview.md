@@ -2,9 +2,15 @@
 
 ## Project Description
 
-Add Audio Unit (AU) support to NIH-Plug.
+Add Audio Unit v3 (AUv3) support to NIH-Plug.
 
 This is for a pull request to https://github.com/robbert-vdh/nih-plug
+
+**CRITICAL: We are implementing AUv3 (Audio Unit version 3), NOT AUv2.**
+- AUv3 uses the modern AVAudioUnit framework
+- AUv3 plugins are app extensions (.appex), not components (.component)
+- AUv3 uses Swift/Objective-C, with Rust core called via FFI
+- AUv2 is deprecated and should NOT be used
 
 Work in phases that end at human testing checkpoints. Each phase should:
 - Implement one testable milestone
@@ -13,43 +19,98 @@ Work in phases that end at human testing checkpoints. Each phase should:
 - Reaching a testing checkpoint IS success for that iteration
 
 Follow NIH-Plug's existing patterns and abstractions.
-Research the codebase to understand how VST3/CLAP work, then apply similar patterns to AU.
+Research the codebase to understand how VST3/CLAP work, then apply similar patterns to AUv3.
 
 This should be production-quality code suitable for upstream merge.
 
+## ⚠️ ARCHITECTURAL PIVOT NOTE
+
+**Iterations 1-2 built AUv2 infrastructure by mistake.**
+
+The work done was valuable for learning NIH-plug patterns, but:
+- AUv2 uses C AudioComponent API (deprecated)
+- AUv3 uses AVAudioUnit framework (modern, required for iOS)
+- The architectures are fundamentally different
+
+**Starting from iteration 4+, we are pivoting to AUv3.**
+
+Study the AUv2 code for NIH-plug integration patterns, but do NOT reuse the AU wrapper code directly.
 
 ## Goals
 
-List the main goals of this project here.
+1. **Enable NIH-plug plugins to export as AUv3**
+   - Provide `nih_export_auv3!()` macro
+   - Generate app extension scaffolding
+   - Bridge Rust plugin to AVAudioUnit
+
+2. **Support macOS and iOS**
+   - AUv3 works on both platforms
+   - Follow Apple's best practices
+
+3. **Maintain NIH-plug patterns**
+   - Follow VST3/CLAP wrapper architecture where applicable
+   - Reuse parameter, state, and context abstractions
+
+4. **Production quality**
+   - Ready for upstream merge
+   - Well-documented
+   - Tested in real DAWs
 
 ## Architecture
 
-### Audio Unit (AUv2) Implementation
+### Audio Unit v3 (AUv3) Implementation
 
-NIH-plug's AU support follows the same architectural pattern as VST3 and CLAP:
+**AUv3 uses a completely different architecture from AUv2:**
 
-1. **Wrapper Layer** (`src/wrapper/au/`)
-   - Translates between AU C API and NIH-plug's Rust Plugin trait
-   - Handles AU component lifecycle (factory, open, close, render)
-   - Manages parameter mapping and automation
-   - Provides AU-specific contexts for initialization and processing
+1. **App Extension Structure**
+   - AUv3 plugins are app extensions (.appex)
+   - Contains Swift/Objective-C code that subclasses AUAudioUnit
+   - Rust plugin core is compiled as static library (.a) and linked
 
-2. **Component Structure**
-   - `AudioComponentPlugInInstance` - The main plugin instance struct
-   - `AudioComponentPlugInInterface` - Function table with AU callbacks
-   - Factory function - Creates instances from AudioComponentDescription
+2. **Wrapper Layer**
+   - Swift AUAudioUnit subclass in app extension
+   - Calls into Rust FFI layer
+   - Rust wrapper translates to NIH-plug Plugin trait
 
-3. **Bundle Distribution**
-   - Plugins are distributed as `.component` bundles
-   - Contains dylib, Info.plist, and optional resources
-   - Info.plist specifies component type, codes, and factory function
+3. **Key Differences from AUv2**
+   - No C AudioComponent API
+   - Uses AVAudioUnit framework
+   - Parameters via AUParameter/AUParameterTree
+   - Rendering via AVAudioPCMBuffer
+   - State via presets/fullState
 
-## Key Features
+4. **Bundle Structure**
+   ```
+   MyPlugin.appex/
+     Contents/
+       MacOS/MyPlugin          # Mach-O app extension
+       Info.plist              # Extension metadata
+       Resources/
+   ```
 
-- Feature 1
-- Feature 2
-- Feature 3
+5. **Integration Strategy**
+   - Build Rust plugin as staticlib
+   - Swift extension imports C headers (FFI)
+   - Calls Rust functions for all plugin operations
+   - Wraps results in AUAudioUnit interface
 
 ## Technical Decisions
 
-Document important technical decisions here as you make them.
+### Use Swift for AUAudioUnit Subclass
+AUv3 requires subclassing AUAudioUnit, which is an Objective-C/Swift class. We'll use Swift for the subclass and call into Rust via FFI.
+
+### Static Library Linking
+Rust plugin compiles as staticlib (.a) and links into the app extension. This is cleaner than dynamic loading.
+
+### FFI Safety Layer
+Create a safe FFI boundary:
+- C-compatible function signatures
+- Proper error handling across FFI
+- No panics across FFI boundary
+
+### Reuse NIH-plug Abstractions
+Where possible, reuse:
+- Parameter mapping and normalization
+- State serialization
+- Buffer and context patterns
+- Follow VST3/CLAP wrapper structure

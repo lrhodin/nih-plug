@@ -1,62 +1,109 @@
-# Audio Unit (AU) Support Implementation Plan
+# Audio Unit v3 (AUv3) Support Implementation Plan
 
-## Phase 1: Foundation & Research (CHECKPOINT: Can compile AU skeleton)
-- [x] Research VST3/CLAP wrapper patterns
-- [x] Set up AU dependencies (AudioToolbox framework bindings)
-- [x] Create basic AU wrapper structure (src/wrapper/au/)
-- [x] Create nih_export_au!() macro skeleton
-- [x] Compiles successfully with AU feature
-- [ ] Test: Can compile a minimal AU plugin that loads in Logic/GarageBand
+## ⚠️ ARCHITECTURAL PIVOT - READ FIRST
 
-## Phase 2: Core Audio Processing (CHECKPOINT: Can process audio)
-- [x] Implement AU component factory structure
-- [x] Create AudioComponentPlugInInstance and interface
-- [x] Document bundle structure and Info.plist requirements
-- [x] Define AU selectors and create selector dispatch system
-- [x] Implement lookup callback with selector routing
-- [x] Implement Initialize/Uninitialize callbacks
-- [x] Implement GetProperty/SetProperty for basic properties
-- [x] Implement Reset callback
-- [x] Implement audio rendering (Render callback)
-- [x] Implement buffer handling for AU format
-- [ ] Test: Plugin processes audio in DAW
+**Iterations 1-3 built AUv2 (deprecated). Starting iteration 4, we're pivoting to AUv3.**
 
-## Phase 3: Parameter System (CHECKPOINT: Parameters work in DAW)
-- [x] Map NIH-plug parameters to AU parameters (basic stubs)
-- [x] Implement Get/Set Parameter callbacks (basic stubs)
-- [x] Complete parameter value conversion (normalized vs plain)
-- [x] Implement parameter change notifications
-- [x] Implement parameter automation
-- [x] Implement preset/state save/load
-- [x] Test: Can automate parameters in DAW
+AUv3 is fundamentally different:
+- App extensions (.appex), not components (.component)
+- Swift AUAudioUnit subclass, not C AudioComponent API
+- AVAudioUnit framework, not AudioToolbox
+- Requires Rust FFI layer + Swift wrapper
 
-## Phase 4: MIDI & Events (CHECKPOINT: MIDI works)
-- [x] Implement MIDI input handling
-- [x] Implement MIDI output (if needed)
-- [ ] Implement note event translation
-- [ ] Test: Plugin responds to MIDI
+Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but **do NOT reuse it directly**.
 
-## Phase 5: GUI Support (CHECKPOINT: GUI displays)
-- [ ] Implement AU view/editor integration
-- [ ] Connect existing NIH-plug editors to AU views
-- [ ] Handle window lifecycle
-- [ ] Test: GUI opens and responds in DAW
+---
 
-## Phase 6: Bundle & Distribution
-- [ ] Update nih_plug_xtask bundler for AU format
-- [ ] Create .component bundle structure
-- [ ] Add Info.plist generation
-- [ ] Test: Can install and load plugin system-wide
+## Phase 1: Research & Planning (CHECKPOINT: Understand AUv3 architecture)
 
-## Phase 7: Polish & Testing
-- [ ] Add comprehensive tests
-- [ ] Add documentation
-- [ ] Test in multiple DAWs (Logic, GarageBand, Ableton, etc.)
-- [ ] Performance optimization
-- [ ] Create auditor program
+- [ ] Research AUv3 architecture and AVAudioUnit framework
+- [ ] Study Apple's AUv3 documentation and examples
+- [ ] Understand app extension structure and requirements
+- [ ] Research Rust FFI patterns for Swift interop
+- [ ] Document AUv3 vs AUv2 differences
+- [ ] Create architectural plan for NIH-plug AUv3 integration
+- [ ] **CHECKPOINT: Present architecture plan for human review**
+
+## Phase 2: FFI Foundation (CHECKPOINT: Rust plugin exports via FFI)
+
+- [ ] Design C FFI interface for plugin operations
+- [ ] Create Rust FFI module (`src/wrapper/auv3/ffi.rs`)
+- [ ] Implement FFI functions for:
+  - Plugin initialization/deinitialization
+  - Parameter queries (count, info, get/set)
+  - Audio processing callback
+  - State save/load
+- [ ] Add C header generation (cbindgen or manual)
+- [ ] Create test harness to verify FFI from C
+- [ ] **CHECKPOINT: Can call Rust plugin from C test program**
+
+## Phase 3: Swift App Extension Scaffold (CHECKPOINT: Extension compiles)
+
+- [ ] Create app extension directory structure
+- [ ] Generate Xcode project for AUv3 extension
+- [ ] Create AUAudioUnit subclass in Swift
+- [ ] Integrate Rust staticlib into Xcode build
+- [ ] Bridge C headers to Swift
+- [ ] Implement minimal AUAudioUnit methods (init, inputBusses, outputBusses)
+- [ ] **CHECKPOINT: Extension builds and can be loaded (even if non-functional)**
+
+## Phase 4: Parameter System (CHECKPOINT: Parameters visible in DAW)
+
+- [ ] Implement AUParameterTree creation in Swift
+- [ ] Map NIH-plug parameters to AUParameter instances
+- [ ] Implement parameter observers (get/set from host)
+- [ ] Bridge parameter changes to Rust via FFI
+- [ ] Handle parameter automation
+- [ ] **CHECKPOINT: Parameters appear and respond in Logic/GarageBand**
+
+## Phase 5: Audio Processing (CHECKPOINT: Audio processes correctly)
+
+- [ ] Implement internalRenderBlock in Swift
+- [ ] Convert AVAudioPCMBuffer to raw buffers for Rust
+- [ ] Call Rust audio processing via FFI
+- [ ] Handle input/output buffer management
+- [ ] Implement proper thread safety
+- [ ] **CHECKPOINT: Plugin processes audio in DAW**
+
+## Phase 6: State Management (CHECKPOINT: State persists)
+
+- [ ] Implement fullState property for state save/load
+- [ ] Serialize NIH-plug state via FFI
+- [ ] Deserialize and restore state
+- [ ] Handle preset management
+- [ ] **CHECKPOINT: Plugin state saves and loads in DAW**
+
+## Phase 7: Build Automation (CHECKPOINT: Can build from command line)
+
+- [ ] Create nih_plug_xtask support for AUv3 bundling
+- [ ] Automate Xcode build from Rust
+- [ ] Generate Info.plist from plugin metadata
+- [ ] Handle code signing
+- [ ] Create installation script
+- [ ] **CHECKPOINT: Can build and install plugin with one command**
+
+## Phase 8: Polish & Testing (CHECKPOINT: Production ready)
+
+- [ ] Add comprehensive error handling
+- [ ] Add logging and diagnostics
+- [ ] Test in multiple DAWs (Logic, GarageBand, Ableton Live, etc.)
+- [ ] Test on iOS (if applicable)
+- [ ] Performance profiling and optimization
+- [ ] Write documentation
+- [ ] Create example plugins
+- [ ] **CHECKPOINT: Ready for upstream PR**
+
+---
+
+## Current Status
+
+**Completed (iterations 1-3):** AUv2 foundation (being discarded)
+**Next task:** Phase 1 - Research AUv3 architecture
 
 ## Notes
-- Start with AUv2 format (most compatible)
-- Consider AUv3 for future enhancement
-- Follow existing VST3/CLAP wrapper patterns closely
-- Each phase ends with a DAW testing checkpoint
+
+- Each phase ends with a human testing checkpoint
+- AUv3 requires macOS 10.11+ (iOS 9+)
+- Swift code must be compatible with NIH-plug's Rust-first approach
+- Consider both macOS and iOS support from the start
+- AUv3 plugins can be loaded in-process (unlike AUv2)
