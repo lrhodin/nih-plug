@@ -142,9 +142,9 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
   - [x] Test plugin recognition after fixing NSExtensionPointIdentifier
   - [x] Research AUv3 host app NSExtension configuration requirements
   - [x] Test alternative NSExtensionPointIdentifier values
-  - [ ] **🚨 CRITICAL: Check system logs for Audio Unit registration errors**
-  - [ ] **🚨 CRITICAL: Test with minimal working AUv3 example to understand correct approach**
-  - [ ] **🚨 CRITICAL: Investigate additional AUv3 discovery requirements**
+  - [x] **🚨 CRITICAL: Check system logs for Audio Unit registration errors** (identified NSExtensionPointIdentifier issue)
+  - [ ] **🚨 CRITICAL: Test plugin in actual DAW (Logic Pro/GarageBand) to verify functionality**
+  - [ ] **🚨 CRITICAL: Verify AUv3 discovery mechanism works in DAW**
 - [ ] Verify plugin appears in pluginkit and auval
 - [ ] Document validation results in handoff
 - [ ] **CHECKPOINT: Plugin passes pluginval strictness level 5**
