@@ -72,25 +72,28 @@ Launch cursor-agent in headless mode to implement one complete task, then verify
    - Write the implementation prompt to a temporary file: /tmp/ralph_iteration_NNN_prompt.md
    - The prompt content is below under "Implementation Prompt"
 
-2. **Launch Cursor Agent**
+2. **Launch Cursor Agent with Timeout Protection**
    Use Bash tool to run:
    ```bash
-   export CURSOR_API_KEY="${CURSOR_API_KEY:-key_not_set}" && timeout 1200 cursor-agent --print --force --output-format json "$(cat /tmp/ralph_iteration_NNN_prompt.md)"
+   export CURSOR_API_KEY="${CURSOR_API_KEY:-key_not_set}" && cursor-agent --print --force --output-format json "$(cat /tmp/ralph_iteration_NNN_prompt.md)"
    ```
+
+   **IMPORTANT: Set the Bash tool's timeout parameter to 1200000 (20 minutes in milliseconds)**
 
    Note:
    - Requires CURSOR_API_KEY environment variable to be set
    - --print: Non-interactive/headless mode
    - --force: Auto-approve file changes and commands
    - --output-format json: Returns structured JSON for easier parsing
-   - Reads prompt from the temp file and passes it directly
+   - Bash timeout: 1200000ms (20 minutes) - kills process if it hangs
+   - If timeout occurs, the Bash tool will return an error
 
 3. **Monitor Completion**
    After Cursor finishes, verify:
    - Check if @handoffs/iteration_NNN.md was created
    - Check if git commit was made (git log -1)
    - If both exist: SUCCESS
-   - If missing: Report what's missing
+   - If missing or timeout occurred: Report timeout or failure
 
 4. **Report Results**
    Output:
