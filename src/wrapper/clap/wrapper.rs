@@ -1836,7 +1836,11 @@ impl<P: ClapPlugin> Wrapper<P> {
                     is_return: info.flags & CLAP_TRACK_INFO_IS_FOR_RETURN_TRACK != 0,
                 };
 
-                *self.track_info.borrow_mut() = Some(track_info);
+                // Use try_borrow_mut to avoid panicking if audio thread is reading
+                // If we can't get the lock, just skip this update - the next update will succeed
+                if let Ok(mut guard) = self.track_info.try_borrow_mut() {
+                    *guard = Some(track_info);
+                }
             }
         }
     }

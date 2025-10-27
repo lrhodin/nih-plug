@@ -131,7 +131,12 @@ impl Plugin for TrackInfoDisplay {
                         let track_name_clone = track_name.clone();
                         Label::new(
                             cx,
-                            Data::track_name.map(move |_| track_name_clone.borrow().clone()),
+                            Data::track_name.map(move |_| {
+                                track_name_clone
+                                    .try_borrow()
+                                    .map(|guard| guard.clone())
+                                    .unwrap_or_else(|_| String::from("..."))
+                            }),
                         )
                         .font_size(20.0)
                         .height(Pixels(35.0))
@@ -150,7 +155,12 @@ impl Plugin for TrackInfoDisplay {
                         let track_color_clone = track_color.clone();
                         Label::new(
                             cx,
-                            Data::track_color.map(move |_| track_color_clone.borrow().clone()),
+                            Data::track_color.map(move |_| {
+                                track_color_clone
+                                    .try_borrow()
+                                    .map(|guard| guard.clone())
+                                    .unwrap_or_else(|_| String::from("..."))
+                            }),
                         )
                         .font_size(16.0)
                         .height(Pixels(25.0));
@@ -251,18 +261,30 @@ impl Plugin for TrackInfoDisplay {
         if let Some(track_info) = context.track_info() {
             // Update track name
             if let Some(name) = &track_info.name {
-                let current_name = self.track_name.borrow().clone();
-                if current_name != *name {
-                    *self.track_name.borrow_mut() = name.clone();
+                // Use try_borrow for reading to avoid panic if GUI thread is also accessing
+                if let Ok(current_name_guard) = self.track_name.try_borrow() {
+                    if *current_name_guard != *name {
+                        drop(current_name_guard); // Release read lock before trying write lock
+                        // Use try_borrow_mut to avoid panic if GUI thread is reading
+                        if let Ok(mut guard) = self.track_name.try_borrow_mut() {
+                            *guard = name.clone();
+                        }
+                    }
                 }
             }
 
             // Update track color
             if let Some((r, g, b, a)) = track_info.color {
                 let color_str = format!("RGBA({}, {}, {}, {})", r, g, b, a);
-                *self.track_color.borrow_mut() = color_str;
+                // Use try_borrow_mut to avoid panic if GUI thread is reading
+                if let Ok(mut guard) = self.track_color.try_borrow_mut() {
+                    *guard = color_str;
+                }
             } else {
-                *self.track_color.borrow_mut() = String::from("No color info");
+                // Use try_borrow_mut to avoid panic if GUI thread is reading
+                if let Ok(mut guard) = self.track_color.try_borrow_mut() {
+                    *guard = String::from("No color info");
+                }
             }
 
             // Update track type flags
@@ -301,12 +323,21 @@ impl Plugin for TrackInfoDisplay {
             }
         } else {
             // Reset to default when no track info available
-            if self.track_name.borrow().as_str() != "No track info" {
-                *self.track_name.borrow_mut() = String::from("No track info");
-                *self.track_color.borrow_mut() = String::from("Unknown");
-                self.is_master.store(false, Ordering::Relaxed);
-                self.is_bus.store(false, Ordering::Relaxed);
-                self.is_return.store(false, Ordering::Relaxed);
+            // Use try_borrow for reading to avoid panic if GUI thread is accessing
+            if let Ok(name_guard) = self.track_name.try_borrow() {
+                if name_guard.as_str() != "No track info" {
+                    drop(name_guard); // Release read lock
+                    // Use try_borrow_mut to avoid panic if GUI thread is reading
+                    if let Ok(mut guard) = self.track_name.try_borrow_mut() {
+                        *guard = String::from("No track info");
+                    }
+                    if let Ok(mut guard) = self.track_color.try_borrow_mut() {
+                        *guard = String::from("Unknown");
+                    }
+                    self.is_master.store(false, Ordering::Relaxed);
+                    self.is_bus.store(false, Ordering::Relaxed);
+                    self.is_return.store(false, Ordering::Relaxed);
+                }
             }
         }
 

@@ -1897,22 +1897,16 @@ impl<P: Vst3Plugin> IUnitInfo for Wrapper<P> {
 }
 
 impl<P: Vst3Plugin> IInfoListener for Wrapper<P> {
-    unsafe fn set_channel_context_infos(&self, list: *mut c_void) -> tresult {
-        if list.is_null() {
-            return kInvalidArgument;
-        }
-
-        // Cast the raw pointer to IAttributeList
-        let list = &*(list as *const *const dyn IAttributeList);
-        let list = &**list;
+    unsafe fn set_channel_context_infos(&self, list: SharedVstPtr<dyn IAttributeList>) -> tresult {
+        check_null_ptr!(list);
+        let list = list.upgrade().unwrap();
 
         let mut track_info = TrackInfo::default();
 
         // Extract track name
         let mut name_tchar = [0i16; 128];
-        let name_key = c"Steinberg.Vst.ChannelContext.ChannelName";
         if list.get_string(
-            name_key.as_ptr(),
+            b"channel name\0".as_ptr() as *const _,
             name_tchar.as_mut_ptr(),
             name_tchar.len() as u32,
         ) == kResultOk
@@ -1925,8 +1919,7 @@ impl<P: Vst3Plugin> IInfoListener for Wrapper<P> {
 
         // Extract track color (ARGB format)
         let mut color: i64 = 0;
-        let color_key = c"Steinberg.Vst.ChannelContext.ChannelColor";
-        if list.get_int(color_key.as_ptr(), &mut color) == kResultOk {
+        if list.get_int(b"channel color\0".as_ptr() as *const _, &mut color) == kResultOk {
             let color_u32 = color as u32;
             track_info.color = Some((
                 ((color_u32 >> 16) & 0xFF) as u8, // R
@@ -1938,16 +1931,14 @@ impl<P: Vst3Plugin> IInfoListener for Wrapper<P> {
 
         // Extract channel index
         let mut index: i64 = 0;
-        let index_key = c"Steinberg.Vst.ChannelContext.ChannelIndex";
-        if list.get_int(index_key.as_ptr(), &mut index) == kResultOk {
+        if list.get_int(b"channel index\0".as_ptr() as *const _, &mut index) == kResultOk {
             track_info.index = Some(index as i32);
         }
 
         // Extract channel UID
         let mut uid_tchar = [0i16; 128];
-        let uid_key = c"Steinberg.Vst.ChannelContext.ChannelUID";
         if list.get_string(
-            uid_key.as_ptr(),
+            b"channel uid\0".as_ptr() as *const _,
             uid_tchar.as_mut_ptr(),
             uid_tchar.len() as u32,
         ) == kResultOk
@@ -1957,8 +1948,11 @@ impl<P: Vst3Plugin> IInfoListener for Wrapper<P> {
             track_info.uid = Some(String::from_utf16_lossy(&uid_u16));
         }
 
-        // Store the track info
-        *self.inner.track_info.borrow_mut() = Some(track_info);
+        // Store the track info - use try_borrow_mut to avoid panicking if audio thread is reading
+        // If we can't get the lock, just skip this update - the next update will succeed
+        if let Ok(mut guard) = self.inner.track_info.try_borrow_mut() {
+            *guard = Some(track_info);
+        }
 
         kResultOk
     }
