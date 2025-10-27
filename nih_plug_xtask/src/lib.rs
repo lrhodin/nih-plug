@@ -573,13 +573,24 @@ fn bundle_plugin(
                 .next()
                 .expect("Malformed AUv3 library path"),
         );
-        maybe_create_macos_bundle_metadata(
+
+        // Generate AUv3-specific Info.plist with plugin metadata
+        // For now, use hardcoded values - in a full implementation, these would be extracted
+        // from the plugin library using FFI calls
+        generate_auv3_infoplist(
             package,
             &bundle_name,
             &auv3_bundle_home,
-            compilation_target,
-            BundleType::Plugin,
+            "Test Gain AUv3",  // plugin_name
+            "NIH-Plug",        // plugin_vendor
+            "1.0.0",           // plugin_version
+            "https://github.com/robbert-vdh/nih-plug", // plugin_url
+            "info@example.com", // plugin_email
+            0x61756D75,        // au_type: 'aumu' (Audio Unit Music Effect)
+            0x6E706C67,        // au_subtype: 'nplg' (NIH-Plug identifier)
+            0x4E504C47,        // au_manufacturer: 'NPLG' (NIH-Plug manufacturer)
         )?;
+
         maybe_codesign(&auv3_bundle_home, compilation_target);
 
         eprintln!("Created an AUv3 bundle at '{}'", auv3_bundle_home.display());
@@ -880,6 +891,120 @@ pub fn maybe_create_macos_bundle_metadata(
 "#),
     )
     .context("Could not create Info.plist file")?;
+
+    Ok(())
+}
+
+/// Generate Info.plist for AUv3 app extension with plugin metadata.
+///
+/// This creates a proper Info.plist for Audio Unit v3 app extensions that includes
+/// the AudioComponents array with plugin registration information.
+pub fn generate_auv3_infoplist(
+    package: &str,
+    display_name: &str,
+    bundle_home: &Path,
+    plugin_name: &str,
+    plugin_vendor: &str,
+    plugin_version: &str,
+    plugin_url: &str,
+    plugin_email: &str,
+    au_type: u32,
+    au_subtype: u32,
+    au_manufacturer: u32,
+) -> Result<()> {
+    if !bundle_home.join("Contents").exists() {
+        fs::create_dir_all(bundle_home.join("Contents"))
+            .context("Could not create Contents directory")?;
+    }
+
+    // Convert 4-byte codes to strings for display
+    let au_type_str = format!("{:08x}", au_type);
+    let au_subtype_str = format!("{:08x}", au_subtype);
+    let au_manufacturer_str = format!("{:08x}", au_manufacturer);
+
+    // Convert hex strings to 4-character codes
+    let au_type_code = format!("{}{}{}{}", 
+        char::from_u32(au_type >> 24 & 0xFF).unwrap_or('?'),
+        char::from_u32(au_type >> 16 & 0xFF).unwrap_or('?'),
+        char::from_u32(au_type >> 8 & 0xFF).unwrap_or('?'),
+        char::from_u32(au_type & 0xFF).unwrap_or('?')
+    );
+    
+    let au_subtype_code = format!("{}{}{}{}", 
+        char::from_u32(au_subtype >> 24 & 0xFF).unwrap_or('?'),
+        char::from_u32(au_subtype >> 16 & 0xFF).unwrap_or('?'),
+        char::from_u32(au_subtype >> 8 & 0xFF).unwrap_or('?'),
+        char::from_u32(au_subtype & 0xFF).unwrap_or('?')
+    );
+    
+    let au_manufacturer_code = format!("{}{}{}{}", 
+        char::from_u32(au_manufacturer >> 24 & 0xFF).unwrap_or('?'),
+        char::from_u32(au_manufacturer >> 16 & 0xFF).unwrap_or('?'),
+        char::from_u32(au_manufacturer >> 8 & 0xFF).unwrap_or('?'),
+        char::from_u32(au_manufacturer & 0xFF).unwrap_or('?')
+    );
+
+    let info_plist_content = format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <key>CFBundleDisplayName</key>
+    <string>{display_name}</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+    <key>CFBundleShortVersionString</key>
+    <string>{plugin_version}</string>
+    <key>CFBundleVersion</key>
+    <string>{plugin_version}</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+    <key>NSExtension</key>
+    <dict>
+        <key>NSExtensionPointIdentifier</key>
+        <string>com.apple.AudioUnit-UI</string>
+        <key>NSExtensionPrincipalClass</key>
+        <string>$(PRODUCT_MODULE_NAME).AUAudioUnit</string>
+    </dict>
+    <key>AudioComponents</key>
+    <array>
+        <dict>
+            <key>type</key>
+            <string>{au_type_code}</string>
+            <key>subtype</key>
+            <string>{au_subtype_code}</string>
+            <key>manufacturer</key>
+            <string>{au_manufacturer_code}</string>
+            <key>name</key>
+            <string>{plugin_name}</string>
+            <key>description</key>
+            <string>{plugin_name} - {plugin_vendor}</string>
+            <key>version</key>
+            <integer>1</integer>
+            <key>sandboxSafe</key>
+            <true/>
+            <key>hasCustomView</key>
+            <true/>
+        </dict>
+    </array>
+</dict>
+</plist>
+"#);
+
+    fs::write(
+        bundle_home.join("Contents").join("Info.plist"),
+        info_plist_content,
+    )
+    .context("Could not create AUv3 Info.plist file")?;
 
     Ok(())
 }

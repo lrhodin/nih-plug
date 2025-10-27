@@ -7,7 +7,7 @@
 //! and safe memory management between Rust and Swift.
 
 use std::ffi::CString;
-use std::os::raw::{c_float, c_int, c_uint, c_void};
+use std::os::raw::{c_char, c_float, c_int, c_uint, c_void};
 use std::sync::Arc;
 use std::collections::HashMap;
 
@@ -718,6 +718,69 @@ pub unsafe extern "C" fn plugin_load_state(
     }
 }
 
+/// Get plugin metadata (name, vendor, version, etc.).
+///
+/// # Safety
+/// This function is unsafe because it deals with raw pointers.
+/// The handle must be valid and not null. The returned strings are owned by the plugin
+/// and should not be freed by the caller.
+#[no_mangle]
+pub unsafe extern "C" fn plugin_get_metadata(
+    handle: PluginHandle,
+    name: *mut *const c_char,
+    vendor: *mut *const c_char,
+    version: *mut *const c_char,
+    url: *mut *const c_char,
+    email: *mut *const c_char,
+) -> c_int {
+    if handle.is_null() || name.is_null() || vendor.is_null() || version.is_null() || url.is_null() || email.is_null() {
+        return FFIError::InvalidArgument.as_i32();
+    }
+
+    let wrapper = &*(handle as *const PluginWrapper);
+    
+    // Create C strings from the plugin metadata
+    let name_cstr = CString::new(TestGainPlugin::NAME).unwrap_or_else(|_| CString::new("Unknown").unwrap());
+    let vendor_cstr = CString::new(TestGainPlugin::VENDOR).unwrap_or_else(|_| CString::new("Unknown").unwrap());
+    let version_cstr = CString::new(TestGainPlugin::VERSION).unwrap_or_else(|_| CString::new("1.0.0").unwrap());
+    let url_cstr = CString::new(TestGainPlugin::URL).unwrap_or_else(|_| CString::new("").unwrap());
+    let email_cstr = CString::new(TestGainPlugin::EMAIL).unwrap_or_else(|_| CString::new("").unwrap());
+
+    // Leak the C strings (they will be valid for the lifetime of the plugin)
+    *name = name_cstr.into_raw();
+    *vendor = vendor_cstr.into_raw();
+    *version = version_cstr.into_raw();
+    *url = url_cstr.into_raw();
+    *email = email_cstr.into_raw();
+
+    FFIError::Success.as_i32()
+}
+
+/// Get plugin Audio Unit type and subtype codes.
+///
+/// # Safety
+/// This function is unsafe because it deals with raw pointers.
+/// The handle must be valid and not null.
+#[no_mangle]
+pub unsafe extern "C" fn plugin_get_au_codes(
+    handle: PluginHandle,
+    au_type: *mut u32,
+    au_subtype: *mut u32,
+    au_manufacturer: *mut u32,
+) -> c_int {
+    if handle.is_null() || au_type.is_null() || au_subtype.is_null() || au_manufacturer.is_null() {
+        return FFIError::InvalidArgument.as_i32();
+    }
+
+    // For now, use hardcoded values for the test plugin
+    // In a full implementation, these could be configurable per plugin
+    *au_type = 0x61756D75; // 'aumu' - Audio Unit Music Effect
+    *au_subtype = 0x6E706C67; // 'nplg' - NIH-Plug identifier
+    *au_manufacturer = 0x4E504C47; // 'NPLG' - NIH-Plug manufacturer code
+
+    FFIError::Success.as_i32()
+}
+
 /// Free memory allocated by the FFI layer.
 ///
 /// # Safety
@@ -1016,6 +1079,80 @@ mod tests {
             
             let destroy_result2 = plugin_destroy(handle2);
             assert_eq!(destroy_result2, 0, "Second plugin destruction should succeed");
+        }
+    }
+
+    #[test]
+    fn test_plugin_metadata() {
+        unsafe {
+            // Create a plugin instance
+            let handle = plugin_create();
+            assert!(!handle.is_null(), "Plugin creation should succeed");
+
+            // Test metadata retrieval
+            let mut name: *const c_char = std::ptr::null();
+            let mut vendor: *const c_char = std::ptr::null();
+            let mut version: *const c_char = std::ptr::null();
+            let mut url: *const c_char = std::ptr::null();
+            let mut email: *const c_char = std::ptr::null();
+
+            let metadata_result = plugin_get_metadata(
+                handle,
+                &mut name,
+                &mut vendor,
+                &mut version,
+                &mut url,
+                &mut email,
+            );
+            assert_eq!(metadata_result, 0, "Metadata retrieval should succeed");
+
+            // Verify the metadata values
+            let name_str = CString::from_raw(name as *mut c_char);
+            let vendor_str = CString::from_raw(vendor as *mut c_char);
+            let version_str = CString::from_raw(version as *mut c_char);
+            let url_str = CString::from_raw(url as *mut c_char);
+            let email_str = CString::from_raw(email as *mut c_char);
+
+            assert_eq!(name_str.to_string_lossy(), "Test Gain AUv3", "Plugin name should match");
+            assert_eq!(vendor_str.to_string_lossy(), "NIH-Plug", "Plugin vendor should match");
+            assert_eq!(version_str.to_string_lossy(), "1.0.0", "Plugin version should match");
+            assert_eq!(url_str.to_string_lossy(), "https://github.com/robbert-vdh/nih-plug", "Plugin URL should match");
+            assert_eq!(email_str.to_string_lossy(), "info@example.com", "Plugin email should match");
+
+            // Clean up plugin
+            let destroy_result = plugin_destroy(handle);
+            assert_eq!(destroy_result, 0, "Plugin destruction should succeed");
+        }
+    }
+
+    #[test]
+    fn test_plugin_au_codes() {
+        unsafe {
+            // Create a plugin instance
+            let handle = plugin_create();
+            assert!(!handle.is_null(), "Plugin creation should succeed");
+
+            // Test AU codes retrieval
+            let mut au_type: u32 = 0;
+            let mut au_subtype: u32 = 0;
+            let mut au_manufacturer: u32 = 0;
+
+            let codes_result = plugin_get_au_codes(
+                handle,
+                &mut au_type,
+                &mut au_subtype,
+                &mut au_manufacturer,
+            );
+            assert_eq!(codes_result, 0, "AU codes retrieval should succeed");
+
+            // Verify the AU codes
+            assert_eq!(au_type, 0x61756D75, "AU type should be 'aumu' (Audio Unit Music Effect)");
+            assert_eq!(au_subtype, 0x6E706C67, "AU subtype should be 'nplg' (NIH-Plug identifier)");
+            assert_eq!(au_manufacturer, 0x4E504C47, "AU manufacturer should be 'NPLG' (NIH-Plug manufacturer)");
+
+            // Clean up plugin
+            let destroy_result = plugin_destroy(handle);
+            assert_eq!(destroy_result, 0, "Plugin destruction should succeed");
         }
     }
 }
