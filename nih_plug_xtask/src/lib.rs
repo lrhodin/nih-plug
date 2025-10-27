@@ -616,6 +616,9 @@ fn bundle_plugin(
             maybe_codesign(&host_app_path, compilation_target);
 
             eprintln!("Created an AUv3 host app bundle at '{}'", host_app_path.display());
+            
+            // Install the host app to /Applications/ for AUv3 discovery
+            install_auv3_plugin(&host_app_path, &bundle_name)?;
         } else {
             anyhow::bail!("AUv3 build failed - .appex not found at '{}'", built_appex.display());
         }
@@ -1216,11 +1219,6 @@ fn create_host_app_infoplist(package: &str, display_name: &str, contents_dir: &P
     <string>1.0.0</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.11</string>
-    <key>NSExtension</key>
-    <dict>
-        <key>NSExtensionPointIdentifier</key>
-        <string>com.apple.AudioUnit</string>
-    </dict>
     <key>NSHighResolutionCapable</key>
     <true/>
 </dict>
@@ -1450,5 +1448,51 @@ fn xcode_build_auv3(package: &str) -> Result<()> {
     eprintln!("✅ Successfully built AUv3 app extension at '{}'", appex_path.display());
     eprintln!("The app extension is ready for testing in Logic Pro or GarageBand.");
 
+    Ok(())
+}
+/// Install AUv3 host app to /Applications/ for plugin discovery.
+/// This function:
+/// 1. Creates the target directory in /Applications/
+/// 2. Copies the host app bundle to /Applications/
+/// 3. Sets proper permissions
+/// 4. Provides instructions for launching the app
+fn install_auv3_plugin(host_app_path: &Path, bundle_name: &str) -> Result<()> {
+    let target_app_name = format!("{}.app", bundle_name);
+    let target_path = Path::new("/Applications").join(&target_app_name);
+    
+    eprintln!("Installing AUv3 plugin to /Applications/...");
+    
+    // Remove existing installation if it exists
+    if target_path.exists() {
+        eprintln!("Removing existing installation at '{}'", target_path.display());
+        std::fs::remove_dir_all(&target_path)
+            .context("Could not remove existing installation")?;
+    }
+    
+    // Copy the host app to /Applications/
+    eprintln!("Copying host app to '{}'", target_path.display());
+    std::process::Command::new("cp")
+        .arg("-R")
+        .arg(host_app_path)
+        .arg(&target_path)
+        .status()
+        .context("Failed to copy host app to /Applications/")?;
+    
+    // Set proper permissions
+    std::process::Command::new("chmod")
+        .arg("-R")
+        .arg("755")
+        .arg(&target_path)
+        .status()
+        .context("Failed to set permissions on installed app")?;
+    
+    eprintln!("✅ Successfully installed AUv3 plugin to '{}'", target_path.display());
+    eprintln!("\n📋 Next steps:");
+    eprintln!("1. Launch the app once to register the plugin with macOS:");
+    eprintln!("   open '{}'", target_path.display());
+    eprintln!("2. Verify plugin registration:");
+    eprintln!("   pluginkit -m -v | grep -i {}", bundle_name);
+    eprintln!("3. Test in Logic Pro or GarageBand");
+    
     Ok(())
 }
