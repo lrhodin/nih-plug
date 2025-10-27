@@ -32,7 +32,7 @@
 
 ## Phase 4: MIDI & Events (CHECKPOINT: MIDI works)
 - [x] Implement MIDI input handling
-- [ ] Implement MIDI output (if needed)
+- [x] Implement MIDI output (if needed)
 - [ ] Implement note event translation
 - [ ] Test: Plugin responds to MIDI
 

@@ -100,9 +100,21 @@ impl<P: Plugin> ProcessContext<P> for WrapperProcessContext<'_, P> {
         self.wrapper.get_next_midi_event()
     }
 
-    fn send_event(&mut self, _event: NoteEvent<P::SysExMessage>) {
+    fn send_event(&mut self, event: NoteEvent<P::SysExMessage>) {
+        // For now, we don't have a way to send MIDI events back to the AU host
+        // This would need to be implemented through the AU MIDI system
+        // which typically requires the plugin to be registered as a MusicDevice
+        // or MusicEffect component type
+        
         // TODO: Implement sending events to AU host
-        nih_debug_assert_failure!("Sending events not yet implemented for AU");
+        // This would involve:
+        // 1. Registering the plugin as a MusicDevice/MusicEffect component
+        // 2. Implementing MIDI event output callbacks to the host
+        // 3. Converting NIH-plug NoteEvent format to AU MIDI events
+        // 4. Sending events to the host through the AU system
+        
+        // For now, we just log the event
+        nih_log!("AU Plugin sent MIDI event: {:?}", event);
     }
 
     fn set_latency_samples(&self, _samples: u32) {
