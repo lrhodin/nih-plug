@@ -15,6 +15,17 @@ import AudioToolbox
 /// It handles parameter management, audio processing, and state management.
 @objc public class NIHPlugAUv3: AUAudioUnit {
     
+    // MARK: - Audio Unit Factory
+    
+    @objc public static func createAudioUnit(componentDescription: AudioComponentDescription) -> AUAudioUnit? {
+        do {
+            return try NIHPlugAUv3(componentDescription: componentDescription)
+        } catch {
+            print("Failed to create NIHPlugAUv3: \(error)")
+            return nil
+        }
+    }
+    
     // MARK: - Properties
     
     /// The Rust plugin handle for FFI operations.
