@@ -87,7 +87,7 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 
 ## Phase 7: Build Automation (CHECKPOINT: Can build from command line)
 
-- [ ] Create nih_plug_xtask support for AUv3 bundling
+- [x] Create nih_plug_xtask support for AUv3 bundling
 - [ ] Automate Xcode build from Rust
 - [ ] Generate Info.plist from plugin metadata
 - [ ] Handle code signing

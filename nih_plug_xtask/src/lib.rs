@@ -23,6 +23,9 @@ fn build_usage_string(command_name: &str) -> String {
   {command_name} bundle-universal <package> [--release]  (macOS only)
   {command_name} bundle-universal -p <package1> -p <package2> ... [--release]  (macOS only)
 
+  {command_name} xcode-build <package> [--release]  (macOS only)
+  {command_name} xcode-build -p <package1> -p <package2> ... [--release]  (macOS only)
+
   All other 'cargo build' options are supported, including '--target' and '--profile'."
     )
 }
@@ -139,6 +142,48 @@ pub fn main_with_args(command_name: &str, args: impl IntoIterator<Item = String>
             bundle(target_dir, &packages[0], &other_args, true)?;
             for package in packages.into_iter().skip(1) {
                 bundle(target_dir, &package, &other_args, true)?;
+            }
+
+            Ok(())
+        }
+        "xcode-build" => {
+            // Build AUv3 plugins using Xcode. This command:
+            // 1. Builds the Rust library with AUv3 features
+            // 2. Runs the build_rust.sh script to prepare the Swift project
+            // 3. Uses xcodebuild to build the Swift app extension
+            // 4. Integrates with the existing bundling system
+            let (packages, other_args) = split_bundle_args(args, &usage_string)?;
+
+            // Check if we're on macOS
+            if !cfg!(target_os = "macos") {
+                anyhow::bail!("xcode-build is only supported on macOS");
+            }
+
+            // For now, we'll build the main nih-plug library with AUv3 features
+            // The AUv3 FFI layer includes a test plugin for demonstration
+            eprintln!("Building NIH-plug with AUv3 features...");
+            let mut auv3_args = other_args.clone();
+            auv3_args.push(String::from("--features"));
+            auv3_args.push(String::from("auv3"));
+            
+            // Build the main library with AUv3 features
+            let status = Command::new("cargo")
+                .arg("build")
+                .args(&auv3_args)
+                .status()
+                .context("Could not build NIH-plug with AUv3 features")?;
+
+            if !status.success() {
+                anyhow::bail!("Failed to build NIH-plug with AUv3 features");
+            }
+
+            // Build the Swift app extension using Xcode
+            xcode_build_auv3("nih-plug")?;
+
+            // Also create the regular bundle for consistency
+            bundle(target_dir, &packages[0], &other_args, false)?;
+            for package in packages.into_iter().skip(1) {
+                bundle(target_dir, &package, &other_args, false)?;
             }
 
             Ok(())
@@ -865,4 +910,85 @@ pub fn maybe_codesign(bundle_home: &Path, target: CompilationTarget) {
             bundle_home.display()
         )
     }
+}
+
+/// Build the AUv3 Swift app extension using Xcode.
+/// This function:
+/// 1. Runs the build_rust.sh script to prepare the Swift project
+/// 2. Uses xcodebuild to build the Swift app extension
+/// 3. Handles errors and provides clear feedback
+fn xcode_build_auv3(package: &str) -> Result<()> {
+    let swift_dir = Path::new("src/wrapper/auv3/swift");
+    
+    // Check if the Swift directory exists
+    if !swift_dir.exists() {
+        anyhow::bail!(
+            "Swift directory not found at '{}'. Make sure you're in the NIH-plug workspace root.",
+            swift_dir.display()
+        );
+    }
+
+    // Check if the Xcode project exists
+    let xcode_project = swift_dir.join("NIHPlugAUv3.xcodeproj");
+    if !xcode_project.exists() {
+        anyhow::bail!(
+            "Xcode project not found at '{}'. Make sure the AUv3 Swift project is set up.",
+            xcode_project.display()
+        );
+    }
+
+    // Check if the build script exists
+    let build_script = swift_dir.join("build_rust.sh");
+    if !build_script.exists() {
+        anyhow::bail!(
+            "Build script not found at '{}'. Make sure the AUv3 build script is present.",
+            build_script.display()
+        );
+    }
+
+    eprintln!("Building AUv3 Swift app extension for package '{}'...", package);
+
+    // Step 1: Run the build_rust.sh script to prepare the Swift project
+    eprintln!("Step 1: Building Rust library and preparing Swift project...");
+    let build_script_status = Command::new("bash")
+        .arg("build_rust.sh")
+        .current_dir(swift_dir)
+        .status()
+        .context("Could not run build_rust.sh script")?;
+
+    if !build_script_status.success() {
+        anyhow::bail!("build_rust.sh script failed with exit code: {:?}", build_script_status.code());
+    }
+
+    // Step 2: Build the Swift app extension using xcodebuild
+    eprintln!("Step 2: Building Swift app extension with xcodebuild...");
+    let xcodebuild_status = Command::new("xcodebuild")
+        .arg("-project")
+        .arg("NIHPlugAUv3.xcodeproj")
+        .arg("-target")
+        .arg("NIHPlugAUv3")
+        .arg("-configuration")
+        .arg("Debug")
+        .arg("build")
+        .current_dir(swift_dir)
+        .status()
+        .context("Could not run xcodebuild")?;
+
+    if !xcodebuild_status.success() {
+        anyhow::bail!("xcodebuild failed with exit code: {:?}", xcodebuild_status.code());
+    }
+
+    // Step 3: Check if the app extension was built successfully
+    let appex_path = swift_dir.join("build/Debug/NIHPlugAUv3.appex");
+    if !appex_path.exists() {
+        anyhow::bail!(
+            "App extension not found at '{}'. The build may have failed.",
+            appex_path.display()
+        );
+    }
+
+    eprintln!("✅ Successfully built AUv3 app extension at '{}'", appex_path.display());
+    eprintln!("The app extension is ready for testing in Logic Pro or GarageBand.");
+
+    Ok(())
 }

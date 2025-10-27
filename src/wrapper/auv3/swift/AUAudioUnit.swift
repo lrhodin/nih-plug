@@ -13,7 +13,7 @@ import AudioToolbox
 ///
 /// This class provides the bridge between the AUv3 host and the Rust FFI layer.
 /// It handles parameter management, audio processing, and state management.
-@objc public class AUAudioUnit: AVAudioUnit {
+@objc public class NIHPlugAUv3: AUAudioUnit {
     
     // MARK: - Properties
     
