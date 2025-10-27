@@ -1,0 +1,2 @@
+Target dependency graph (1 target)
+Target 'NIHPlugAUv3' in project 'NIHPlugAUv3' (no dependencies)

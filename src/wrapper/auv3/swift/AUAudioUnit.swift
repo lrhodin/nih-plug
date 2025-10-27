@@ -18,7 +18,7 @@ import AudioToolbox
     // MARK: - Properties
     
     /// The Rust plugin handle for FFI operations.
-    private var pluginHandle: OpaquePointer?
+    private var pluginHandle: UnsafeMutableRawPointer?
     
     /// The parameter tree for the plugin.
     private var _parameterTree: AUParameterTree?
@@ -85,18 +85,27 @@ import AudioToolbox
         var parameters: [AUParameter] = []
         
         for i in 0..<paramCount {
-            var paramInfo = ParameterInfo(id: 0, name: nil, unit: nil, minValue: 0, maxValue: 1, defaultValue: 0)
+            var paramInfo = ParameterInfo()
+            paramInfo.id = 0
+            paramInfo.name = nil
+            paramInfo.unit = nil
+            paramInfo.minValue = 0
+            paramInfo.maxValue = 1
+            paramInfo.defaultValue = 0
             let result = plugin_get_parameter_info(handle, UInt32(i), &paramInfo)
             
             if result == 0 { // Success
+                let paramName = paramInfo.name != nil ? String(cString: paramInfo.name!) : "Parameter \(i)"
+                let paramUnit = paramInfo.unit != nil ? String(cString: paramInfo.unit!) : nil
+                
                 let param = AUParameter.createParameter(
                     withIdentifier: "param_\(i)",
-                    name: String(cString: paramInfo.name),
+                    name: paramName,
                     address: UInt64(i),
                     min: paramInfo.minValue,
                     max: paramInfo.maxValue,
                     unit: .generic,
-                    unitName: paramInfo.unit != nil ? String(cString: paramInfo.unit) : nil,
+                    unitName: paramUnit,
                     flags: [],
                     valueStrings: nil,
                     dependentParameters: nil
@@ -293,48 +302,5 @@ import AudioToolbox
 
 // MARK: - FFI Function Declarations
 
-// These functions are declared here and will be linked from the Rust static library
-@_silgen_name("plugin_create")
-func plugin_create() -> OpaquePointer?
-
-@_silgen_name("plugin_destroy")
-func plugin_destroy(_ handle: OpaquePointer?) -> Int32
-
-@_silgen_name("plugin_initialize")
-func plugin_initialize(_ handle: OpaquePointer?, _ sampleRate: Float, _ maxBlockSize: UInt32, _ inputChannels: UInt32, _ outputChannels: UInt32) -> Int32
-
-@_silgen_name("plugin_process")
-func plugin_process(_ handle: OpaquePointer?, _ inputBuffers: UnsafePointer<UnsafePointer<Float>?>, _ outputBuffers: UnsafeMutablePointer<UnsafeMutablePointer<Float>?>, _ numChannels: UInt32, _ numFrames: UInt32) -> Int32
-
-@_silgen_name("plugin_get_parameter_count")
-func plugin_get_parameter_count(_ handle: OpaquePointer?) -> UInt32
-
-@_silgen_name("plugin_get_parameter_info")
-func plugin_get_parameter_info(_ handle: OpaquePointer?, _ paramId: UInt32, _ info: UnsafeMutablePointer<ParameterInfo>) -> Int32
-
-@_silgen_name("plugin_set_parameter")
-func plugin_set_parameter(_ handle: OpaquePointer?, _ paramId: UInt32, _ normalizedValue: Float) -> Int32
-
-@_silgen_name("plugin_get_parameter")
-func plugin_get_parameter(_ handle: OpaquePointer?, _ paramId: UInt32, _ value: UnsafeMutablePointer<Float>) -> Int32
-
-@_silgen_name("plugin_save_state")
-func plugin_save_state(_ handle: OpaquePointer?, _ data: UnsafeMutablePointer<UnsafeMutablePointer<UInt8>?>, _ size: UnsafeMutablePointer<UInt32>) -> Int32
-
-@_silgen_name("plugin_load_state")
-func plugin_load_state(_ handle: OpaquePointer?, _ data: UnsafePointer<UInt8>, _ size: UInt32) -> Int32
-
-@_silgen_name("plugin_free")
-func plugin_free(_ ptr: UnsafeMutableRawPointer?)
-
-// MARK: - C Structure Definitions
-
-/// Parameter information structure for FFI.
-struct ParameterInfo {
-    let id: UInt32
-    let name: UnsafePointer<CChar>
-    let unit: UnsafePointer<CChar>
-    let minValue: Float
-    let maxValue: Float
-    let defaultValue: Float
-}
+// These functions are declared in the bridging header and will be linked from the Rust static library
+// The bridging header provides the C function declarations that Swift can import
