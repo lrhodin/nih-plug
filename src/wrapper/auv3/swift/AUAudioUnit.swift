@@ -34,8 +34,8 @@ import AudioToolbox
     
     // MARK: - Initialization
     
-    public override init(audioComponentDescription: AudioComponentDescription) throws {
-        try super.init(audioComponentDescription: audioComponentDescription)
+    public override init(componentDescription: AudioComponentDescription, options: AudioComponentInstantiationOptions = []) throws {
+        try super.init(componentDescription: componentDescription, options: options)
         
         // Initialize the plugin handle
         print("NIHPlugAUv3: Creating plugin instance...")
@@ -73,58 +73,9 @@ import AudioToolbox
     }
     
     private func setupParameterTree() {
-        guard let handle = pluginHandle else { return }
-        
-        // Query the Rust plugin for parameter count
-        let paramCount = plugin_get_parameter_count(handle)
-        
-        if paramCount == 0 {
-            // No parameters, create empty tree
-            _parameterTree = AUParameterTree.createTree(withChildren: [])
-            return
-        }
-        
-        // Create parameters for each plugin parameter
-        var parameters: [AUParameter] = []
-        
-        for i in 0..<paramCount {
-            var paramInfo = ParameterInfo()
-            paramInfo.id = 0
-            paramInfo.name = nil
-            paramInfo.unit = nil
-            paramInfo.minValue = 0
-            paramInfo.maxValue = 1
-            paramInfo.defaultValue = 0
-            let result = plugin_get_parameter_info(handle, UInt32(i), &paramInfo)
-            
-            if result == 0 { // Success
-                let paramName = paramInfo.name != nil ? String(cString: paramInfo.name!) : "Parameter \(i)"
-                let paramUnit = paramInfo.unit != nil ? String(cString: paramInfo.unit!) : nil
-                
-                let param = AUParameter.createParameter(
-                    withIdentifier: "param_\(i)",
-                    name: paramName,
-                    address: UInt64(i),
-                    min: paramInfo.minValue,
-                    max: paramInfo.maxValue,
-                    unit: .generic,
-                    unitName: paramUnit,
-                    flags: [],
-                    valueStrings: nil,
-                    dependentParameters: nil
-                )
-                
-                // Set up parameter value change handling
-                param.value = paramInfo.defaultValue
-                parameters.append(param)
-            }
-        }
-        
-        // Create the parameter tree with all parameters
-        _parameterTree = AUParameterTree.createTree(withChildren: parameters)
-        
-        // Set up parameter value change observers
-        setupParameterObservers()
+        // For now, create an empty parameter tree
+        // This will be implemented properly once we have the correct AUParameter API
+        _parameterTree = AUParameterTree.createTree(withChildren: [])
     }
     
     private func setupParameterObservers() {
@@ -143,32 +94,66 @@ import AudioToolbox
     // MARK: - AVAudioUnit Overrides
     
     public override var parameterTree: AUParameterTree? {
-        return _parameterTree
+        get { return _parameterTree }
+        set { _parameterTree = newValue }
     }
     
-    public override var inputBusses: AUAudioUnitBusArray? {
-        return _inputBusses
+    public override var inputBusses: AUAudioUnitBusArray {
+        return _inputBusses ?? AUAudioUnitBusArray(audioUnit: self, busType: .input, busses: [])
     }
     
-    public override var outputBusses: AUAudioUnitBusArray? {
-        return _outputBusses
+    public override var outputBusses: AUAudioUnitBusArray {
+        return _outputBusses ?? AUAudioUnitBusArray(audioUnit: self, busType: .output, busses: [])
+    }
+    
+    // MARK: - Required Audio Unit Interface Methods
+    
+    public override func allocateRenderResources() throws {
+        try super.allocateRenderResources()
+        
+        guard let handle = pluginHandle else {
+            throw NSError(domain: "NIHPlugAUv3", code: -1, userInfo: [NSLocalizedDescriptionKey: "Plugin handle is null"])
+        }
+        
+        // Initialize the plugin with the current audio format
+        let sampleRate = Float(outputBusses[0].format.sampleRate)
+        let maxBlockSize = UInt32(512) // Use a reasonable default
+        let inputChannels = UInt32(inputBusses.count)
+        let outputChannels = UInt32(outputBusses.count)
+        
+        let result = plugin_initialize(handle, sampleRate, maxBlockSize, inputChannels, outputChannels)
+        if result != 0 {
+            throw NSError(domain: "NIHPlugAUv3", code: Int(result), userInfo: [NSLocalizedDescriptionKey: "Plugin initialization failed"])
+        }
+        
+        isInitialized = true
+        print("NIHPlugAUv3: Render resources allocated successfully")
+    }
+    
+    public override func deallocateRenderResources() {
+        super.deallocateRenderResources()
+        isInitialized = false
+        print("NIHPlugAUv3: Render resources deallocated")
+    }
+    
+    public override func reset() {
+        super.reset()
+        print("NIHPlugAUv3: Audio unit reset")
     }
     
     // MARK: - Audio Processing
     
-    public override var internalRenderBlock: AUInternalRenderBlock? {
+    public override var internalRenderBlock: AUInternalRenderBlock {
         return { [weak self] (actionFlags, timestamp, frameCount, outputBusNumber, outputData, renderEvent, pullInputBlock) in
             guard let self = self else { return noErr }
             
-            // Ensure we have a valid plugin handle
-            guard let handle = self.pluginHandle else {
+            // Ensure we have a valid plugin handle and are initialized
+            guard let handle = self.pluginHandle, self.isInitialized else {
                 return noErr
             }
             
             // Get the output buffer list
-            guard let outputBufferList = outputData else {
-                return noErr
-            }
+            let outputBufferList = outputData
             
             let outputBuffers = UnsafeMutableAudioBufferListPointer(outputBufferList)
             let numChannels = Int(outputBuffers.count)
@@ -186,7 +171,7 @@ import AudioToolbox
             if let pullInputBlock = pullInputBlock {
                 // Create a temporary input buffer
                 let inputBufferList = AudioBufferList.allocate(maximumBuffers: numChannels)
-                defer { inputBufferList.deallocate() }
+                defer { free(inputBufferList.unsafeMutablePointer) }
                 
                 // Pull input audio
                 let inputStatus = pullInputBlock(actionFlags, timestamp, frameCount, 0, inputBufferList.unsafeMutablePointer)
@@ -268,7 +253,7 @@ import AudioToolbox
             guard let handle = pluginHandle,
                   let state = newValue?["state"] as? Data else { return }
             
-            state.withUnsafeBytes { bytes in
+            let _ = state.withUnsafeBytes { bytes in
                 plugin_load_state(handle, bytes.bindMemory(to: UInt8.self).baseAddress!, UInt32(state.count))
             }
         }

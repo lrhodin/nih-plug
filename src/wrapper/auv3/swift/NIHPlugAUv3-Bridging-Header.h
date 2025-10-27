@@ -53,7 +53,7 @@ uint32_t plugin_get_parameter_count(void* handle);
 /// @param param_id Parameter ID
 /// @param info Output parameter info structure
 /// @return 0 on success, negative error code on failure
-int32_t plugin_get_parameter_info(void* handle, uint32_t param_id, struct ParameterInfo* info);
+int32_t plugin_get_parameter_info(void* handle, uint32_t param_id, void* info);
 
 /// Set a parameter value.
 /// @param handle Plugin handle
@@ -86,6 +86,24 @@ int32_t plugin_load_state(void* handle, const uint8_t* data, uint32_t size);
 /// Free memory allocated by the FFI layer.
 /// @param ptr Pointer to free
 void plugin_free(void* ptr);
+
+/// Get plugin metadata (name, vendor, version, etc.).
+/// @param handle Plugin handle
+/// @param name Output plugin name
+/// @param vendor Output plugin vendor
+/// @param version Output plugin version
+/// @param url Output plugin URL
+/// @param email Output plugin email
+/// @return 0 on success, negative error code on failure
+int32_t plugin_get_metadata(void* handle, const char** name, const char** vendor, const char** version, const char** url, const char** email);
+
+/// Get plugin Audio Unit type and subtype codes.
+/// @param handle Plugin handle
+/// @param au_type Output Audio Unit type code
+/// @param au_subtype Output Audio Unit subtype code
+/// @param au_manufacturer Output Audio Unit manufacturer code
+/// @return 0 on success, negative error code on failure
+int32_t plugin_get_au_codes(void* handle, uint32_t* au_type, uint32_t* au_subtype, uint32_t* au_manufacturer);
 
 // MARK: - C Structure Definitions
 

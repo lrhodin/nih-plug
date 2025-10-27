@@ -68,9 +68,9 @@
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>
-		<string>com.apple.AudioUnit-UI</string>
+		<string>com.apple.AudioUnit</string>
 		<key>NSExtensionPrincipalClass</key>
-		<string>NIHPlugAUv3.AUAudioUnit</string>
+		<string>NIHPlugAUv3.NIHPlugAUv3</string>
 	</dict>
 </dict>
 </plist>
