@@ -129,8 +129,12 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 - [x] **🚨 CRITICAL: Fix Swift runtime dependency issue (embed Swift libraries in .appex bundle)**
 - [x] **🚨 CRITICAL: Fix bundler to create host .app structure (see AUV3_DEPLOYMENT_ISSUE.md)**
 - [x] **🚨 CRITICAL: Fix static library linking issue in Xcode project (symbols not appearing in binary)**
-- [x] Test plugin recognition with proper host app bundle
+- [x] Test plugin recognition with proper host app bundle ✅ ROOT CAUSE: Wrong installation location
 - [x] **🚨 CRITICAL: Fix Swift module loading issue (copy .swiftmodule files to installed plugin)**
+- [ ] **🚨 CRITICAL: Fix AUv3 deployment - install to /Applications instead of ~/Library/Audio/Plug-Ins/Components/**
+- [ ] Test plugin recognition after /Applications deployment
+- [ ] Add launch step to trigger PlugInKit registration
+- [ ] Verify plugin appears in pluginkit and auval
 - [ ] Document validation results in handoff
 - [ ] **CHECKPOINT: Plugin passes pluginval strictness level 5**
 
