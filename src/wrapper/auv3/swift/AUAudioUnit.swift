@@ -148,13 +148,86 @@ import AudioToolbox
         return { [weak self] (actionFlags, timestamp, frameCount, outputBusNumber, outputData, renderEvent, pullInputBlock) in
             guard let self = self else { return noErr }
             
-            // For now, just pass through the audio
-            // In a full implementation, this would call the Rust plugin's process function
+            // Ensure we have a valid plugin handle
+            guard let handle = self.pluginHandle else {
+                return noErr
+            }
+            
+            // Get the output buffer list
+            guard let outputBufferList = outputData else {
+                return noErr
+            }
+            
+            let outputBuffers = UnsafeMutableAudioBufferListPointer(outputBufferList)
+            let numChannels = Int(outputBuffers.count)
+            let numFrames = Int(frameCount)
+            
+            if numChannels == 0 || numFrames == 0 {
+                return noErr
+            }
+            
+            // Prepare input and output buffer arrays for FFI
+            var inputChannelPointers: [UnsafePointer<Float>?] = []
+            var outputChannelPointers: [UnsafeMutablePointer<Float>?] = []
+            
+            // Handle input if we have a pull input block
             if let pullInputBlock = pullInputBlock {
-                let status = pullInputBlock(actionFlags, timestamp, frameCount, 0, outputData)
-                if status != noErr {
-                    return status
+                // Create a temporary input buffer
+                let inputBufferList = AudioBufferList.allocate(maximumBuffers: numChannels)
+                defer { inputBufferList.deallocate() }
+                
+                // Pull input audio
+                let inputStatus = pullInputBlock(actionFlags, timestamp, frameCount, 0, inputBufferList.unsafeMutablePointer)
+                if inputStatus != noErr {
+                    return inputStatus
                 }
+                
+                // Convert input buffers to pointers
+                let inputBuffers = UnsafeMutableAudioBufferListPointer(inputBufferList.unsafeMutablePointer)
+                for i in 0..<numChannels {
+                    if i < inputBuffers.count {
+                        let buffer = inputBuffers[i]
+                        if let data = buffer.mData {
+                            inputChannelPointers.append(data.assumingMemoryBound(to: Float.self))
+                        } else {
+                            inputChannelPointers.append(nil)
+                        }
+                    } else {
+                        inputChannelPointers.append(nil)
+                    }
+                }
+            }
+            
+            // Convert output buffers to pointers
+            for i in 0..<numChannels {
+                if i < outputBuffers.count {
+                    let buffer = outputBuffers[i]
+                    if let data = buffer.mData {
+                        outputChannelPointers.append(data.assumingMemoryBound(to: Float.self))
+                    } else {
+                        outputChannelPointers.append(nil)
+                    }
+                } else {
+                    outputChannelPointers.append(nil)
+                }
+            }
+            
+            // Call the Rust audio processing function
+            let result = inputChannelPointers.withUnsafeBufferPointer { inputPtr in
+                outputChannelPointers.withUnsafeMutableBufferPointer { outputPtr in
+                    plugin_process(
+                        handle,
+                        inputChannelPointers.isEmpty ? nil : inputPtr.baseAddress,
+                        outputPtr.baseAddress,
+                        UInt32(numChannels),
+                        UInt32(numFrames)
+                    )
+                }
+            }
+            
+            if result != 0 {
+                print("Audio processing failed with error: \(result)")
+                return noErr
             }
             
             return noErr
