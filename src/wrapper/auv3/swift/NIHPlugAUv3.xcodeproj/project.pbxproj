@@ -9,13 +9,13 @@
 /* Begin PBXBuildFile section */
 		A1234567890123456789012A /* AUAudioUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1234567890123456789012B /* AUAudioUnit.swift */; };
 		A1234567890123456789012C /* NIHPlugAUv3-Bridging-Header.h in Headers */ = {isa = PBXBuildFile; fileRef = A1234567890123456789012D /* NIHPlugAUv3-Bridging-Header.h */; };
-		A1234567890123456789012E /* libnih_plug.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A1234567890123456789012F /* libnih_plug.a */; };
+		A1234567890123456789012E /* libnih_plug_universal.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A1234567890123456789012F /* libnih_plug_universal.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		A1234567890123456789012B /* AUAudioUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AUAudioUnit.swift"; sourceTree = "<group>"; };
 		A1234567890123456789012D /* NIHPlugAUv3-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NIHPlugAUv3-Bridging-Header.h"; sourceTree = "<group>"; };
-		A1234567890123456789012F /* libnih_plug.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libnih_plug.a; sourceTree = "<group>"; };
+		A1234567890123456789012F /* libnih_plug_universal.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libnih_plug_universal.a; sourceTree = "<group>"; };
 		A1234567890123456789013A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1234567890123456789013B /* NIHPlugAUv3.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NIHPlugAUv3.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -25,7 +25,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1234567890123456789012E /* libnih_plug_auv3.a in Frameworks */,
+				A1234567890123456789012E /* libnih_plug_universal.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -38,7 +38,7 @@
 				A1234567890123456789012B /* AUAudioUnit.swift */,
 				A1234567890123456789012D /* NIHPlugAUv3-Bridging-Header.h */,
 				A1234567890123456789013A /* Info.plist */,
-				A1234567890123456789012F /* libnih_plug.a */,
+				A1234567890123456789012F /* libnih_plug_universal.a */,
 			);
 			path = NIHPlugAUv3;
 			sourceTree = "<group>";
