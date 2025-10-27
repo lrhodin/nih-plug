@@ -1,17 +1,33 @@
 # Audio Unit v3 (AUv3) Support Implementation Plan
 
-## 🚨 CRITICAL ISSUE IDENTIFIED - READ `AUV3_DEPLOYMENT_ISSUE.md` FIRST
+## 🚨 CRITICAL ISSUE - PLUGIN NOT DISCOVERED BY MACOS (Iteration 45)
 
-**ROOT CAUSE FOUND (Iterations 27-30):** Plugin recognition failure is due to **incorrect bundle structure**, not implementation issues.
+**CURRENT STATUS:** Plugin builds and installs correctly to `/Applications/gain.app/Contents/PlugIns/NIHPlugAUv3.appex`, but is **NOT DISCOVERED** by the system.
 
-**All Swift/FFI code is CORRECT.** The problem: AUv3 `.appex` files must be inside a **host .app bundle** to be registered by macOS.
+**EVIDENCE:**
+- ❌ `auval -a` does NOT list the plugin
+- ❌ `pluginkit -m -v -p com.apple.audio-unit` shows "(no matches)"
+- ❌ Plugin does NOT appear in Logic Pro
+- ✅ Bundle structure is correct (host app + .appex extension)
+- ✅ Code signing works
+- ✅ FFI symbols present
 
-👉 **READ `AUV3_DEPLOYMENT_ISSUE.md` for complete solution before continuing!**
+**HYPOTHESIS:** There is a fundamental registration/discovery issue. We need to research working AUv3 examples to identify what's missing.
 
-Current bundler creates standalone `.appex` which macOS ignores. Need to create:
+**NEXT STEP:** Complete "Phase 7.5: AUv3 Discovery Research" (see below) BEFORE attempting any more fixes.
+
+---
+
+## 🚨 PREVIOUS ISSUE RESOLVED - Bundle Structure (Iterations 27-30)
+
+**ROOT CAUSE FOUND:** AUv3 `.appex` files must be inside a **host .app bundle** to be registered by macOS.
+
+**SOLUTION IMPLEMENTED:** Bundler now creates:
 ```
 NIHPlugAUv3Host.app/Contents/PlugIns/NIHPlugAUv3.appex/
 ```
+
+This issue is RESOLVED, but a new discovery issue has been identified (see above).
 
 ---
 
@@ -115,7 +131,88 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 - [ ] Handle code signing
 - [ ] Create installation script
 
+## Phase 7.5: AUv3 Discovery Research (CHECKPOINT: Understand why plugin isn't discovered) 🔴 IN PROGRESS
+
+**🚨 BLOCKER:** Plugin builds correctly but is NOT discovered by macOS. Must research before attempting more fixes.
+
+**RESEARCH ONLY - NO IMPLEMENTATION THIS PHASE**
+
+### Core Research Tasks
+
+- [ ] **Find working AUv3 examples:**
+  - [ ] Search for Apple's AUv3 sample code (FilterDemoApp, AUv3 host examples)
+  - [ ] Search GitHub for minimal, working open-source AUv3 plugins
+  - [ ] Identify 2-3 examples that are confirmed working
+  - [ ] Download and build at least one example locally
+
+- [ ] **Verify example plugins work:**
+  - [ ] Install example plugin to /Applications
+  - [ ] Run `auval -a` - does it show up?
+  - [ ] Run `pluginkit -m` with various protocols - which protocol works?
+  - [ ] Test in Logic Pro - does it appear?
+  - [ ] Document exact commands and results
+
+- [ ] **Compare bundle structure:**
+  - [ ] Compare working example's bundle structure vs NIH-Plug's
+  - [ ] Check all Info.plist keys in both host app and extension
+  - [ ] Compare NSExtension configuration
+  - [ ] Compare AudioComponents array structure
+  - [ ] Document ALL differences found
+
+- [ ] **Research registration mechanism:**
+  - [ ] Research: Does AUv3 use pluginkit or different system?
+  - [ ] Research: What is the correct pluginkit protocol for AUv3? (not `com.apple.audio-unit`?)
+  - [ ] Research: Does macOS cache plugin registrations? How to clear?
+  - [ ] Check Console.app for system logs during plugin installation
+  - [ ] Document the complete AUv3 registration flow
+
+- [ ] **Investigate code signing requirements:**
+  - [ ] Compare code signing of working example vs NIH-Plug
+  - [ ] Research: Are there specific entitlements needed?
+  - [ ] Research: Does AUv3 require App Store signing vs ad-hoc?
+  - [ ] Document signing requirements
+
+- [ ] **Test system refresh commands:**
+  - [ ] Test: `killall -9 AudioComponentRegistrar`
+  - [ ] Test: `pluginkit -r` (reset plugin cache)
+  - [ ] Test: Restart macOS
+  - [ ] Document which (if any) work for AUv3
+
+- [ ] **Create detailed comparison document:**
+  - [ ] Document all differences found between working example and NIH-Plug
+  - [ ] Prioritize differences by likely impact
+  - [ ] Create hypotheses for what's causing discovery failure
+  - [ ] **CHECKPOINT: Present research findings before any implementation**
+
+### Research Questions to Answer
+
+1. **Do AUv3 plugins appear in `auval -a`?** Or is that only for AUv2?
+2. **What pluginkit protocol should AUv3 use?** The current `com.apple.audio-unit` returns no matches
+3. **Is the NSExtensionPointIdentifier correct?** Should it be something else?
+4. **Are there additional Info.plist keys required?** Compare with working examples
+5. **Does the host app need to be launched once?** To trigger registration?
+6. **Are there Console.app errors?** Check for registration failures
+7. **Is our AudioComponents array structure correct?** Compare with working examples
+
+### Success Criteria
+
+- ✅ Found and built at least one working AUv3 example
+- ✅ Verified example appears in system (auval/pluginkit/Logic)
+- ✅ Documented exact differences between working example and NIH-Plug
+- ✅ Have clear hypotheses for what's wrong
+- ✅ **CHECKPOINT: Present research findings to human before attempting fixes**
+
+### Important Notes
+
+- **NO IMPLEMENTATION** this phase - pure research only
+- Focus on understanding, not fixing
+- Document everything found
+- Create clear comparison between working vs non-working
+- End with hypotheses, not solutions
+
 ## Phase 8: Automated Validation (CHECKPOINT: Passes pluginval)
+
+**⚠️ BLOCKED:** Must complete Phase 7.5 research first
 
 **BEFORE requesting human DAW testing, validate plugins with pluginval**
 
@@ -178,9 +275,11 @@ pluginval --strictness-level 5 --validate-in-process --verbose /path/to/TestPlug
 **Completed (iterations 1-5):** AUv2 foundation with working audio processing
 **Completed (iteration 6):** Phase 1 - Research AUv3 architecture ✅
 **Completed (iteration 17):** Phase 7 - Build Automation ✅
-**Completed (iteration 30):** Root cause analysis ✅
-**Next task:** Fix bundler to create host app structure (see AUV3_DEPLOYMENT_ISSUE.md)
-**After that:** Phase 8 validation & Phase 9 polish
+**Completed (iteration 30):** Bundle structure fix ✅
+**Completed (iteration 44):** Fixed NSExtensionPointIdentifier ✅
+**Current (iteration 45):** Phase 7.5 - AUv3 Discovery Research 🔴
+**Next task:** Research working AUv3 examples to understand discovery mechanism
+**After that:** Fix discovery issues, then Phase 8 validation & Phase 9 polish
 
 ## Recent Accomplishments (Iteration 005)
 

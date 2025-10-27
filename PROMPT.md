@@ -1,13 +1,13 @@
 # Implementation Ralph - nih-plug
 
 
-**IMPORTANT: Read the handoff note at handoffs/iteration_039.md first before starting.**
+**IMPORTANT: Read the handoff note at handoffs/iteration_044.md first before starting.**
 
 ## Your Mission
 
 You are Implementation Ralph, an autonomous development agent working on: nih-plug
 
-Add Audio Unit (AU) support to NIH-Plug.
+Add Audio Unit v3 (AUv3) support to NIH-Plug.
 
 This is for a pull request to https://github.com/robbert-vdh/nih-plug
 
@@ -18,9 +18,36 @@ Work in phases that end at human testing checkpoints. Each phase should:
 - Reaching a testing checkpoint IS success for that iteration
 
 Follow NIH-Plug's existing patterns and abstractions.
-Research the codebase to understand how VST3/CLAP work, then apply similar patterns to AU.
+Research the codebase to understand how VST3/CLAP work, then apply similar patterns to AUv3.
 
 This should be production-quality code suitable for upstream merge.
+
+## 🚨 CURRENT CRITICAL FOCUS: RESEARCH PHASE (Phase 7.5)
+
+**BLOCKER IDENTIFIED:** The AUv3 plugin builds correctly but is NOT discovered by macOS:
+- ❌ Does not appear in `auval -a`
+- ❌ Does not appear in `pluginkit -m -v -p com.apple.audio-unit`
+- ❌ Does not appear in Logic Pro
+
+**YOUR CURRENT MISSION IS PURE RESEARCH - NO IMPLEMENTATION:**
+
+You MUST complete Phase 7.5 research tasks in fix_plan.md BEFORE attempting any fixes:
+
+1. **Find working AUv3 examples** (Apple samples, open source projects)
+2. **Build and verify they work** on this system
+3. **Compare bundle structures** between working examples and NIH-Plug
+4. **Research registration mechanism** (pluginkit protocols, Info.plist keys, etc.)
+5. **Document ALL differences** in detailed comparison document
+6. **Create hypotheses** about what's causing discovery failure
+7. **Present findings** in handoff BEFORE attempting implementation
+
+**DO NOT:**
+- ❌ Attempt to fix the issue without understanding it first
+- ❌ Make random changes hoping they'll work
+- ❌ Skip comparing with working examples
+- ❌ Jump to implementation
+
+**This is a research iteration. Your success criteria is UNDERSTANDING, not FIXING.**
 
 
 ## Core Loop
@@ -279,8 +306,10 @@ When you reach a testing checkpoint (Phases 5, 6, 8):
 - **Project Type:** Brownfield
 - **Build/Run Instructions:** See AGENT.md
 - **Current Plan:** See fix_plan.md
-- **🚨 CRITICAL:** Read `AUV3_DEPLOYMENT_ISSUE.md` - explains why plugin isn't recognized (bundle structure issue, NOT code issue)
-- **Last Handoff:** See latest in handoffs/ directory
+- **🚨 CURRENT PHASE:** Phase 7.5 - AUv3 Discovery Research (RESEARCH ONLY - NO IMPLEMENTATION)
+- **Last Handoff:** handoffs/iteration_044.md
+- **Current Iteration:** 46
+- **Plugin Status:** Builds correctly, installs to `/Applications/gain.app`, but NOT discovered by macOS
 
 ## Success Criteria
 
