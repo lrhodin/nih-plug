@@ -1,7 +1,7 @@
 # Implementation Ralph - nih-plug
 
 
-**IMPORTANT: Read the handoff note at handoffs/iteration_028.md first before starting.**
+**IMPORTANT: Read the handoff note at handoffs/iteration_029.md first before starting.**
 
 ## Your Mission
 
@@ -179,6 +179,59 @@ When you believe the project is ~80% complete:
 - **Eventual consistency** - trust the process, keep iterating
 - **Be deterministic** - when uncertain, choose a clear path and commit
 - **Validate before human testing** - use pluginval to catch issues automatically
+
+## System-Level Debugging for AUv3
+
+**CRITICAL:** When debugging AUv3 plugin recognition issues, USE THE BASH TOOL to run diagnostic commands yourself. Don't just suggest them in handoffs!
+
+### Debugging Plugin Recognition Issues
+
+If `auval` can't find your plugin or shows recognition errors:
+
+**Step 1: Verify FFI Symbols Are Present**
+```bash
+nm ~/Library/Audio/Plug-Ins/Components/gain.appex/Contents/MacOS/gain | grep -i nih_plug
+```
+- Should show: `plugin_create`, `plugin_destroy`, `plugin_process`, etc.
+- If missing: FFI linkage is broken, check Xcode project settings
+
+**Step 2: Check System Logs for Errors**
+In a background terminal, start log streaming:
+```bash
+log stream --predicate 'subsystem == "com.apple.audio" or process == "AudioComponentRegistrar"' --level debug &
+```
+Then rebuild and install the plugin. Look for:
+- Initialization errors
+- Registration failures
+- Your debug print statements
+- Framework error messages
+
+**Step 3: Verify Extension Registration**
+```bash
+pluginkit -m -v | grep -i audio
+```
+Should show your plugin if properly registered. If missing, extension isn't being recognized.
+
+**Step 4: Test System Recognition**
+```bash
+auval -a | grep -i nplg
+auval -v aufx Nplg NPLG
+```
+First command lists all audio units. Second validates specifically.
+
+**Step 5: Check Bundle Structure**
+```bash
+ls -la ~/Library/Audio/Plug-Ins/Components/gain.appex/Contents/
+cat ~/Library/Audio/Plug-Ins/Components/gain.appex/Contents/Info.plist | grep -A 5 NSExtension
+```
+Verify Info.plist has correct NSExtensionPointIdentifier and NSExtensionPrincipalClass.
+
+### When to Use These Tools
+
+- **During implementation:** Run these commands yourself to verify your changes work
+- **When tests fail:** Use logs to understand why
+- **Before handoff:** Include actual command output in your handoff notes
+- **DON'T just suggest commands** - actually run them and report findings!
 
 ## Automated Validation with pluginval
 
