@@ -426,7 +426,9 @@ fn bundle_plugin(
         .with_context(|| format!("Could not parse '{}'", first_lib_path.display()))?;
     let bundle_vst3 = symbols::exported(first_lib_path, "GetPluginFactory")
         .with_context(|| format!("Could not parse '{}'", first_lib_path.display()))?;
-    let bundled_plugin = bundle_clap || bundle_vst2 || bundle_vst3;
+    let bundle_auv3 = symbols::exported(first_lib_path, "plugin_create")
+        .with_context(|| format!("Could not parse '{}'", first_lib_path.display()))?;
+    let bundled_plugin = bundle_clap || bundle_vst2 || bundle_vst3 || bundle_auv3;
 
     if bundle_clap {
         let clap_bundle_library_name = clap_bundle_library_name(&bundle_name, compilation_target);
@@ -510,6 +512,32 @@ fn bundle_plugin(
         maybe_codesign(vst3_bundle_home, compilation_target);
 
         eprintln!("Created a VST3 bundle at '{}'", vst3_bundle_home.display());
+    }
+    if bundle_auv3 {
+        let auv3_bundle_library_name = auv3_bundle_library_name(&bundle_name, compilation_target);
+        let auv3_lib_path = bundle_home_dir.join(&auv3_bundle_library_name);
+
+        fs::create_dir_all(auv3_lib_path.parent().unwrap())
+            .context("Could not create AUv3 bundle directory")?;
+        util::reflink_or_combine(lib_paths, &auv3_lib_path, compilation_target)
+            .context("Could not create AUv3 bundle")?;
+
+        let auv3_bundle_home = bundle_home_dir.join(
+            Path::new(&auv3_bundle_library_name)
+                .components()
+                .next()
+                .expect("Malformed AUv3 library path"),
+        );
+        maybe_create_macos_bundle_metadata(
+            package,
+            &bundle_name,
+            &auv3_bundle_home,
+            compilation_target,
+            BundleType::Plugin,
+        )?;
+        maybe_codesign(&auv3_bundle_home, compilation_target);
+
+        eprintln!("Created an AUv3 bundle at '{}'", auv3_bundle_home.display());
     }
     if !bundled_plugin {
         eprintln!("Not creating any plugin bundles because the package does not export any plugins")
@@ -723,6 +751,22 @@ fn vst3_bundle_library_name(package: &str, target: CompilationTarget) -> String 
         }
         CompilationTarget::Windows(Architecture::RISCV64) => {
             panic!("riscv64 are not supported by windows currently!")
+        }
+    }
+}
+
+/// The full path to the library file inside of an AUv3 bundle, including the leading `.appex`
+/// directory.
+///
+/// AUv3 plugins are macOS-only and use the App Extension (.appex) format.
+fn auv3_bundle_library_name(package: &str, target: CompilationTarget) -> String {
+    match target {
+        CompilationTarget::MacOS(_) | CompilationTarget::MacOSUniversal => {
+            format!("{package}.appex/Contents/MacOS/{package}")
+        }
+        _ => {
+            // AUv3 is macOS-only, so we don't support other platforms
+            panic!("AUv3 plugins are only supported on macOS")
         }
     }
 }
