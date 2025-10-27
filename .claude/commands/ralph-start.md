@@ -75,7 +75,7 @@ Launch cursor-agent in headless mode to implement one complete task, then verify
 2. **Launch Cursor Agent**
    Use Bash tool to run:
    ```bash
-   export CURSOR_API_KEY="${CURSOR_API_KEY:-key_not_set}" && cursor-agent --print --force --output-format json "$(cat /tmp/ralph_iteration_NNN_prompt.md)"
+   export CURSOR_API_KEY="${CURSOR_API_KEY:-key_not_set}" && timeout 1200 cursor-agent --print --force --output-format json "$(cat /tmp/ralph_iteration_NNN_prompt.md)"
    ```
 
    Note:
