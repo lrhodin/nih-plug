@@ -45,6 +45,7 @@ pub(crate) struct WrapperProcessContext<'a, P: Plugin> {
     pub(super) _phantom: std::marker::PhantomData<&'a P>,
     pub(super) sample_rate: f32,
     pub(super) transport: Transport,
+    pub(super) wrapper: &'a super::wrapper::Wrapper<P>,
 }
 
 impl<'a, P: Plugin> WrapperProcessContext<'a, P> {
@@ -69,6 +70,7 @@ impl<'a, P: Plugin> WrapperProcessContext<'a, P> {
             _phantom: std::marker::PhantomData,
             sample_rate,
             transport,
+            wrapper: &instance.wrapper,
         }
     }
 }
@@ -94,8 +96,8 @@ impl<P: Plugin> ProcessContext<P> for WrapperProcessContext<'_, P> {
     }
 
     fn next_event(&mut self) -> Option<NoteEvent<P::SysExMessage>> {
-        // TODO: Implement MIDI/note event handling for AU
-        None
+        // Get the next MIDI event from the wrapper's queue
+        self.wrapper.get_next_midi_event()
     }
 
     fn send_event(&mut self, _event: NoteEvent<P::SysExMessage>) {

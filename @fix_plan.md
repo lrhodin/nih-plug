@@ -31,7 +31,7 @@
 - [x] Test: Can automate parameters in DAW
 
 ## Phase 4: MIDI & Events (CHECKPOINT: MIDI works)
-- [ ] Implement MIDI input handling
+- [x] Implement MIDI input handling
 - [ ] Implement MIDI output (if needed)
 - [ ] Implement note event translation
 - [ ] Test: Plugin responds to MIDI

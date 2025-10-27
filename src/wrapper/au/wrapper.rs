@@ -9,6 +9,7 @@ use parking_lot::RwLock;
 
 use crate::plugin::Plugin;
 use crate::prelude::{AudioIOLayout, BufferConfig, Params};
+use crate::midi::NoteEvent;
 
 use super::parameters::ParameterChangeEvent;
 
@@ -34,6 +35,10 @@ pub struct Wrapper<P: Plugin> {
     /// Queue of parameter change events for sample-accurate automation.
     /// These events are applied during audio processing at their specified buffer offsets.
     parameter_change_queue: RwLock<VecDeque<ParameterChangeEvent>>,
+
+    /// Queue of MIDI/note events for the current audio buffer.
+    /// These events are processed during audio rendering.
+    midi_event_queue: RwLock<VecDeque<NoteEvent<P::SysExMessage>>>,
 }
 
 impl<P: Plugin> Wrapper<P> {
@@ -51,6 +56,7 @@ impl<P: Plugin> Wrapper<P> {
             buffer_config: RwLock::new(None),
             audio_io_layout: RwLock::new(None),
             parameter_change_queue: RwLock::new(VecDeque::new()),
+            midi_event_queue: RwLock::new(VecDeque::new()),
         })
     }
 
@@ -192,6 +198,32 @@ impl<P: Plugin> Wrapper<P> {
     #[allow(dead_code)]
     pub(crate) fn params(&self) -> &Arc<dyn Params> {
         &self.params
+    }
+
+    /// Add a MIDI event to the queue for the current audio buffer.
+    ///
+    /// This is called when the host sends MIDI events to the plugin.
+    pub fn add_midi_event(&self, event: NoteEvent<P::SysExMessage>) {
+        let mut queue = self.midi_event_queue.write();
+        queue.push_back(event);
+        nih_log!("AU Added MIDI event to queue");
+    }
+
+    /// Get the next MIDI event from the queue.
+    ///
+    /// This returns the next MIDI event in the queue and removes it.
+    pub fn get_next_midi_event(&self) -> Option<NoteEvent<P::SysExMessage>> {
+        let mut queue = self.midi_event_queue.write();
+        queue.pop_front()
+    }
+
+    /// Clear all pending MIDI events.
+    ///
+    /// This is called when the plugin is reset or deactivated.
+    pub fn clear_midi_events(&self) {
+        let mut queue = self.midi_event_queue.write();
+        queue.clear();
+        nih_log!("AU Cleared all pending MIDI events");
     }
 }
 

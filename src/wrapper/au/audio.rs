@@ -101,6 +101,10 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
         // This needs to be done before audio processing
         Self::process_scheduled_parameter_changes(plugin_instance, num_frames);
 
+        // Process MIDI events for the current buffer
+        // This needs to be done before audio processing
+        Self::process_midi_events(plugin_instance, num_frames);
+
         // Process the audio
         let result = {
             let mut plugin = plugin_instance.wrapper.plugin().write();
@@ -162,6 +166,28 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
                 }
             }
         }
+    }
+
+    /// Process MIDI events for the current audio buffer.
+    ///
+    /// This method processes any MIDI events that are queued for the current
+    /// audio buffer. In a full implementation, this would handle MIDI events
+    /// from the AU host.
+    fn process_midi_events(plugin_instance: &Self, _num_frames: usize) {
+        // For now, we don't have a way to receive MIDI events from the AU host
+        // This would need to be implemented through the AU MIDI system
+        // which typically requires the plugin to be registered as a MusicDevice
+        // or MusicEffect component type
+        
+        // TODO: Implement MIDI event processing from AU host
+        // This would involve:
+        // 1. Registering the plugin as a MusicDevice/MusicEffect component
+        // 2. Implementing MIDI event callbacks from the host
+        // 3. Converting AU MIDI events to NIH-plug NoteEvent format
+        // 4. Adding events to the wrapper's MIDI event queue
+        
+        // For now, we just clear any existing MIDI events
+        plugin_instance.wrapper.clear_midi_events();
     }
 
 }
