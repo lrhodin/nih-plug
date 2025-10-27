@@ -14,18 +14,18 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 
 ---
 
-## Phase 1: Research & Planning (CHECKPOINT: Understand AUv3 architecture)
+## Phase 1: Research & Planning (CHECKPOINT: Understand AUv3 architecture) ✅ COMPLETED
 
 ### Research Tasks (small, focused - max 20 min each)
 
-- [ ] Document key AUv2 vs AUv3 architectural differences (brief summary)
-- [ ] Research: AVAudioUnit class hierarchy and core methods
-- [ ] Research: AUv3 app extension bundle structure (.appex format)
-- [ ] Research: Basic Swift-to-Rust FFI examples (simple function calls)
-- [ ] Research: AUParameter and AUParameterTree for parameter management
-- [ ] Research: AUv3 audio processing (internalRenderBlock)
-- [ ] Create: One-page AUv3 architecture summary for NIH-plug integration
-- [ ] **CHECKPOINT: Present architecture plan for human review**
+- [x] Document key AUv2 vs AUv3 architectural differences (brief summary)
+- [x] Research: AVAudioUnit class hierarchy and core methods
+- [x] Research: AUv3 app extension bundle structure (.appex format)
+- [x] Research: Basic Swift-to-Rust FFI examples (simple function calls)
+- [x] Research: AUParameter and AUParameterTree for parameter management
+- [x] Research: AUv3 audio processing (internalRenderBlock)
+- [x] Create: One-page AUv3 architecture summary for NIH-plug integration
+- [x] **CHECKPOINT: Present architecture plan for human review**
 
 ## Phase 2: FFI Foundation (CHECKPOINT: Rust plugin exports via FFI)
 
