@@ -64,7 +64,7 @@
 	<key>DTXcodeBuild</key>
 	<string>17A400</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>10.11</string>
+	<string>10.12</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>

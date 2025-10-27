@@ -52,6 +52,9 @@ import AudioToolbox
     // MARK: - Initialization
     
     public override init(componentDescription: AudioComponentDescription, options: AudioComponentInstantiationOptions = []) throws {
+        print("NIHPlugAUv3: Starting initialization...")
+        print("NIHPlugAUv3: Component description - type: \(componentDescription.componentType), subtype: \(componentDescription.componentSubType), manufacturer: \(componentDescription.componentManufacturer)")
+        
         try super.init(componentDescription: componentDescription, options: options)
         
         // Initialize the plugin handle
@@ -65,6 +68,8 @@ import AudioToolbox
         
         // Set up audio unit properties
         setupAudioUnit()
+        
+        print("NIHPlugAUv3: Initialization completed successfully")
     }
     
     deinit {
@@ -77,6 +82,8 @@ import AudioToolbox
     // MARK: - Audio Unit Setup
     
     private func setupAudioUnit() {
+        print("NIHPlugAUv3: Setting up audio unit...")
+        
         // Set up input and output busses
         // For now, we'll use stereo input/output
         let inputBus = try! AUAudioUnitBus(format: AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2)!)
@@ -85,8 +92,12 @@ import AudioToolbox
         _inputBusses = AUAudioUnitBusArray(audioUnit: self, busType: .input, busses: [inputBus])
         _outputBusses = AUAudioUnitBusArray(audioUnit: self, busType: .output, busses: [outputBus])
         
+        print("NIHPlugAUv3: Input busses: \(_inputBusses?.count ?? 0), Output busses: \(_outputBusses?.count ?? 0)")
+        
         // Set up parameter tree
         setupParameterTree()
+        
+        print("NIHPlugAUv3: Audio unit setup completed")
     }
     
     private func setupParameterTree() {
@@ -121,6 +132,26 @@ import AudioToolbox
     
     public override var outputBusses: AUAudioUnitBusArray {
         return _outputBusses ?? AUAudioUnitBusArray(audioUnit: self, busType: .output, busses: [])
+    }
+    
+    // MARK: - Required Audio Unit Properties
+    
+    /// Indicates whether the audio unit can process audio in-place.
+    /// For most effect plugins, this should be true.
+    public override var canProcessInPlace: Bool {
+        return true
+    }
+    
+    /// Indicates whether the audio unit should allocate input bus.
+    /// For effect plugins, this should be true.
+    public override var shouldAllocateInputBus: Bool {
+        return true
+    }
+    
+    /// Maximum number of frames the audio unit can render in a single call.
+    /// This is important for buffer management and performance.
+    public override var maximumFramesToRender: AUAudioFrameCount {
+        return 512 // Use a reasonable default for most plugins
     }
     
     // MARK: - Required Audio Unit Interface Methods
@@ -314,6 +345,12 @@ import AudioToolbox
     // AUv3 registration is handled automatically by the NSExtension framework
     // through the Info.plist configuration. No manual registration needed.
     print("NIHPlugAUv3: Audio Unit registration handled by NSExtension framework")
+}
+
+/// Alternative registration method that might be needed for some systems
+@objc public static func registerAudioUnit() {
+    print("NIHPlugAUv3: Static registration method called")
+    // This method might be called by the system for registration
 }
 
 // MARK: - FFI Function Declarations
