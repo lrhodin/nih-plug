@@ -309,8 +309,11 @@ import AudioToolbox
 
 /// Main entry point for Audio Unit registration.
 /// This function is called when the extension is loaded.
+/// For AUv3, registration is handled automatically by the NSExtension framework.
 @objc public func registerNIHPlugAudioUnit() {
-    NIHPlugAUv3.registerAudioUnit()
+    // AUv3 registration is handled automatically by the NSExtension framework
+    // through the Info.plist configuration. No manual registration needed.
+    print("NIHPlugAUv3: Audio Unit registration handled by NSExtension framework")
 }
 
 // MARK: - FFI Function Declarations
