@@ -97,6 +97,10 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
         // TODO: Handle transport state
         let mut context = WrapperProcessContext::new(plugin_instance);
 
+        // Process scheduled parameter changes for sample-accurate automation
+        // This needs to be done before audio processing
+        Self::process_scheduled_parameter_changes(plugin_instance, num_frames);
+
         // Process the audio
         let result = {
             let mut plugin = plugin_instance.wrapper.plugin().write();
@@ -120,6 +124,46 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
             }
         }
     }
+
+    /// Process scheduled parameter changes for sample-accurate automation.
+    ///
+    /// This method applies any parameter changes that are scheduled for the current
+    /// audio buffer. It processes changes in order of their buffer offsets.
+    fn process_scheduled_parameter_changes(plugin_instance: &Self, num_frames: usize) {
+        // Get the parameter mapping
+        let param_by_id = Self::get_parameter_mapping(plugin_instance);
+        
+        // Process parameter changes for the entire buffer
+        // In a full implementation, this would be done in smaller chunks
+        // for true sample-accurate automation
+        for frame_offset in 0..num_frames {
+            if let Some(event) = plugin_instance.wrapper.get_next_parameter_change(frame_offset as u32) {
+                // Apply the parameter change
+                if let Some(param_ptr) = param_by_id.get(&event.parameter_id) {
+                    if unsafe { param_ptr.set_normalized_value(event.normalized_value) } {
+                        nih_log!(
+                            "AU Applied scheduled parameter change: ID={}, value={}, offset={}",
+                            event.parameter_id,
+                            event.normalized_value,
+                            event.buffer_offset
+                        );
+                    } else {
+                        nih_log!(
+                            "AU Failed to apply scheduled parameter change: ID={}, value={}",
+                            event.parameter_id,
+                            event.normalized_value
+                        );
+                    }
+                } else {
+                    nih_log!(
+                        "AU Unknown parameter ID in scheduled change: {}",
+                        event.parameter_id
+                    );
+                }
+            }
+        }
+    }
+
 }
 
 #[cfg(test)]

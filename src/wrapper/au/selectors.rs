@@ -112,6 +112,7 @@ impl AudioUnitSelector {
                 | Self::SetProperty
                 | Self::GetParameter
                 | Self::SetParameter
+                | Self::ScheduleParameters
                 | Self::Render
         )
     }

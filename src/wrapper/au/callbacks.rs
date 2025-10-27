@@ -137,6 +137,9 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
             (*plugin).reset();
         }
 
+        // Clear any pending parameter changes
+        plugin_instance.wrapper.clear_parameter_changes();
+
         errors::NO_ERR
     }
 }

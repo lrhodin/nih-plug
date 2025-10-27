@@ -95,6 +95,7 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
             AudioUnitSelector::SetProperty => Self::au_set_property as *const c_void,
             AudioUnitSelector::GetParameter => Self::au_get_parameter as *const c_void,
             AudioUnitSelector::SetParameter => Self::au_set_parameter as *const c_void,
+            AudioUnitSelector::ScheduleParameters => Self::au_schedule_parameters as *const c_void,
             AudioUnitSelector::Render => Self::au_render as *const c_void,
             AudioUnitSelector::Reset => Self::au_reset as *const c_void,
             _ => {

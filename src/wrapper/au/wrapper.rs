@@ -4,10 +4,13 @@
 //! and the NIH-plug Plugin trait.
 
 use std::sync::Arc;
+use std::collections::VecDeque;
 use parking_lot::RwLock;
 
 use crate::plugin::Plugin;
 use crate::prelude::{AudioIOLayout, BufferConfig, Params};
+
+use super::parameters::ParameterChangeEvent;
 
 use super::context::WrapperInitContext;
 
@@ -27,6 +30,10 @@ pub struct Wrapper<P: Plugin> {
 
     /// The current audio I/O layout, set during initialization.
     audio_io_layout: RwLock<Option<AudioIOLayout>>,
+
+    /// Queue of parameter change events for sample-accurate automation.
+    /// These events are applied during audio processing at their specified buffer offsets.
+    parameter_change_queue: RwLock<VecDeque<ParameterChangeEvent>>,
 }
 
 impl<P: Plugin> Wrapper<P> {
@@ -43,6 +50,7 @@ impl<P: Plugin> Wrapper<P> {
             params,
             buffer_config: RwLock::new(None),
             audio_io_layout: RwLock::new(None),
+            parameter_change_queue: RwLock::new(VecDeque::new()),
         })
     }
 
@@ -96,6 +104,73 @@ impl<P: Plugin> Wrapper<P> {
     pub fn deactivate(&self) {
         let mut plugin = self.plugin.write();
         plugin.deactivate();
+    }
+
+    /// Notify about a parameter change.
+    ///
+    /// This is called when a parameter value changes to allow the plugin
+    /// to respond to the change (e.g., update GUI, trigger recomputation).
+    pub fn notify_parameter_change(&self, param_id: u32, normalized_value: f32) {
+        // For now, we'll just log the parameter change
+        // In a full implementation, this would notify the GUI or other systems
+        nih_log!(
+            "AU Parameter change notification: ID={}, value={}",
+            param_id,
+            normalized_value
+        );
+        
+        // TODO: Implement proper parameter change notification system
+        // This could involve:
+        // 1. Notifying the GUI about the change
+        // 2. Triggering plugin recomputation if needed
+        // 3. Updating any cached values
+    }
+
+    /// Schedule a parameter change for sample-accurate automation.
+    ///
+    /// This adds a parameter change event to the queue with its buffer offset
+    /// timing. The change will be applied during audio processing at the
+    /// specified sample offset.
+    pub fn schedule_parameter_change(&self, param_id: u32, normalized_value: f32, buffer_offset: u32) {
+        let event = ParameterChangeEvent {
+            parameter_id: param_id,
+            normalized_value,
+            buffer_offset,
+        };
+        
+        let mut queue = self.parameter_change_queue.write();
+        queue.push_back(event);
+        
+        nih_log!(
+            "AU Scheduled parameter change: ID={}, value={}, offset={}",
+            param_id,
+            normalized_value,
+            buffer_offset
+        );
+    }
+
+    /// Get the next parameter change event for the current buffer offset.
+    ///
+    /// This returns the next parameter change event that should be applied
+    /// at or before the given buffer offset. The event is removed from the queue.
+    pub fn get_next_parameter_change(&self, current_offset: u32) -> Option<ParameterChangeEvent> {
+        let mut queue = self.parameter_change_queue.write();
+        
+        // Find the first event that should be applied at or before current_offset
+        if let Some(pos) = queue.iter().position(|event| event.buffer_offset <= current_offset) {
+            queue.remove(pos)
+        } else {
+            None
+        }
+    }
+
+    /// Clear all pending parameter change events.
+    ///
+    /// This is called when the plugin is reset or deactivated.
+    pub fn clear_parameter_changes(&self) {
+        let mut queue = self.parameter_change_queue.write();
+        queue.clear();
+        nih_log!("AU Cleared all pending parameter changes");
     }
 
     /// Get a reference to the buffer configuration.

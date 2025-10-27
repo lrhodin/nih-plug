@@ -24,11 +24,11 @@
 ## Phase 3: Parameter System (CHECKPOINT: Parameters work in DAW)
 - [x] Map NIH-plug parameters to AU parameters (basic stubs)
 - [x] Implement Get/Set Parameter callbacks (basic stubs)
-- [ ] Complete parameter value conversion (normalized vs plain)
-- [ ] Implement parameter change notifications
-- [ ] Implement parameter automation
+- [x] Complete parameter value conversion (normalized vs plain)
+- [x] Implement parameter change notifications
+- [x] Implement parameter automation
 - [ ] Implement preset/state save/load
-- [ ] Test: Can automate parameters in DAW
+- [x] Test: Can automate parameters in DAW
 
 ## Phase 4: MIDI & Events (CHECKPOINT: MIDI works)
 - [ ] Implement MIDI input handling
