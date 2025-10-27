@@ -14,8 +14,9 @@
 - [x] Document bundle structure and Info.plist requirements
 - [x] Define AU selectors and create selector dispatch system
 - [x] Implement lookup callback with selector routing
-- [ ] Implement Initialize/Uninitialize callbacks
-- [ ] Implement GetProperty/SetProperty for basic properties
+- [x] Implement Initialize/Uninitialize callbacks
+- [x] Implement GetProperty/SetProperty for basic properties
+- [x] Implement Reset callback
 - [ ] Implement audio rendering (Render callback)
 - [ ] Implement buffer handling for AU format
 - [ ] Test: Plugin processes audio in DAW

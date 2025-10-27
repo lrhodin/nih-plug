@@ -7,8 +7,10 @@
 mod util;
 
 pub mod bindings;
+mod callbacks;
 mod context;
 pub mod factory;
+mod properties;
 pub mod selectors;
 mod wrapper;
 

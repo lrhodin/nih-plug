@@ -88,24 +88,11 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
         );
 
         // Return function pointers for each selector
-        // These functions will be implemented in future commits
         match selector_enum {
-            AudioUnitSelector::Initialize => {
-                // TODO: Return pointer to initialize function
-                std::ptr::null()
-            }
-            AudioUnitSelector::Uninitialize => {
-                // TODO: Return pointer to uninitialize function
-                std::ptr::null()
-            }
-            AudioUnitSelector::GetProperty => {
-                // TODO: Return pointer to get_property function
-                std::ptr::null()
-            }
-            AudioUnitSelector::SetProperty => {
-                // TODO: Return pointer to set_property function
-                std::ptr::null()
-            }
+            AudioUnitSelector::Initialize => Self::au_initialize as *const c_void,
+            AudioUnitSelector::Uninitialize => Self::au_uninitialize as *const c_void,
+            AudioUnitSelector::GetProperty => Self::au_get_property as *const c_void,
+            AudioUnitSelector::SetProperty => Self::au_set_property as *const c_void,
             AudioUnitSelector::GetParameter => {
                 // TODO: Return pointer to get_parameter function
                 std::ptr::null()
@@ -118,10 +105,7 @@ impl<P: Plugin> AudioComponentPlugInInstance<P> {
                 // TODO: Return pointer to render function
                 std::ptr::null()
             }
-            AudioUnitSelector::Reset => {
-                // TODO: Return pointer to reset function
-                std::ptr::null()
-            }
+            AudioUnitSelector::Reset => Self::au_reset as *const c_void,
             _ => {
                 nih_log!("AU lookup: selector {} not yet implemented", selector_enum.name());
                 std::ptr::null()

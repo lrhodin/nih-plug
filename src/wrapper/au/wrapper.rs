@@ -97,6 +97,21 @@ impl<P: Plugin> Wrapper<P> {
         let mut plugin = self.plugin.write();
         plugin.deactivate();
     }
+
+    /// Get a reference to the buffer configuration.
+    pub(crate) fn buffer_config(&self) -> &RwLock<Option<BufferConfig>> {
+        &self.buffer_config
+    }
+
+    /// Get a reference to the audio I/O layout.
+    pub(crate) fn audio_io_layout(&self) -> &RwLock<Option<AudioIOLayout>> {
+        &self.audio_io_layout
+    }
+
+    /// Get a reference to the plugin instance.
+    pub(crate) fn plugin(&self) -> &RwLock<P> {
+        &self.plugin
+    }
 }
 
 impl<P: Plugin> Drop for Wrapper<P> {
