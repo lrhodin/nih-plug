@@ -54,6 +54,9 @@ default = ["vst3"]
 # may also allocate if they use string formatting, so temporarily disabling this
 # feature may be necessary when debugging panics in DSP code.
 assert_process_allocs = ["dep:assert_no_alloc"]
+# Enables the `nih_export_au!()` macro for Audio Unit v2 plugins on macOS.
+# This feature is only available on macOS.
+au = ["dep:coreaudio-sys"]
 # Enables an export target for standalone binaries through the
 # `nih_export_standalone()` function. Disabled by default as this requires
 # building additional dependencies for audio and MIDI handling.
@@ -110,6 +113,9 @@ cpal = { version = "0.15", optional = true }
 jack = { version = "0.11.4", optional = true }
 midir = { version = "0.9.1", optional = true }
 rtrb = { version = "0.2.2", optional = true }
+
+# Used for the `au` feature (macOS only)
+coreaudio-sys = { version = "0.2", optional = true }
 
 # Used for the `vst3` feature
 vst3-sys = { git = "https://github.com/robbert-vdh/vst3-sys.git", branch = "fix/drop-box-from-raw", optional = true }
