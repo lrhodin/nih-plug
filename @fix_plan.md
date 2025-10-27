@@ -105,8 +105,9 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 
 ## Current Status
 
-**Completed (iterations 1-4):** AUv2 foundation with working audio processing
-**Next task:** Phase 1 - Research AUv3 architecture
+**Completed (iterations 1-5):** AUv2 foundation with working audio processing
+**Completed (iteration 6):** Phase 1 - Research AUv3 architecture ✅
+**Next task:** Phase 2 - FFI Foundation
 
 ## Recent Accomplishments (Iteration 005)
 
@@ -121,6 +122,25 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 - Supports both effect plugins (with input) and generator plugins (output only)
 - Proper handling of channel counts based on AudioIOLayout
 - Safe pointer casting for input buffers (read-only to mutable for NIH-plug compatibility)
+
+## Recent Accomplishments (Iteration 006)
+
+**Completed Phase 1 - Research & Planning:**
+- ✅ Documented key AUv2 vs AUv3 architectural differences
+- ✅ Researched AVAudioUnit class hierarchy and core methods
+- ✅ Researched AUv3 app extension bundle structure (.appex format)
+- ✅ Researched Swift-to-Rust FFI examples and patterns
+- ✅ Researched AUParameter and AUParameterTree for parameter management
+- ✅ Researched AUv3 audio processing (internalRenderBlock)
+- ✅ Created comprehensive AUv3 architecture summary for NIH-plug integration
+
+**Key Research Findings:**
+- AUv3 requires complete architectural rewrite from AUv2
+- Swift AUAudioUnit subclass + FFI layer needed for Rust integration
+- AUParameterTree provides automatic parameter automation and host integration
+- internalRenderBlock handles real-time audio processing with AVAudioPCMBuffer
+- .appex bundle format with Xcode project generation required
+- Comprehensive FFI interface design completed for all plugin functionality
 
 ## Notes
 
