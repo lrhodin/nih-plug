@@ -1,7 +1,7 @@
 # Implementation Ralph - nih-plug
 
 
-**IMPORTANT: Read the handoff note at @handoffs/iteration_004.md first before starting.**
+**IMPORTANT: Read the handoff note at @handoffs/iteration_005.md first before starting.**
 
 ## Your Mission
 
@@ -69,7 +69,7 @@ Follow this loop precisely:
 
    **If you cannot see <system-reminder> tags (Cursor):**
    - Count tasks completed this iteration
-   - Handoff if: tasks_completed >= 3
+   - Handoff if: tasks_completed >= 1 (complete ONE task then handoff)
 
    **Also handoff if:**
    - You've reached a natural testing checkpoint
