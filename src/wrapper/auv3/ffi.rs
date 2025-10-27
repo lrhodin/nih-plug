@@ -10,8 +10,14 @@ use std::ffi::CString;
 use std::os::raw::{c_float, c_int, c_uint, c_void};
 use std::sync::Arc;
 
-use crate::prelude::{AudioIOLayout, BufferConfig, Params};
+use crate::prelude::{
+    AudioIOLayout, BufferConfig, Params, Plugin, ProcessContext, ProcessStatus,
+    FloatParam, FloatRange, SmoothingStyle, MidiConfig, AuxiliaryBuffers, Buffer,
+    util, formatters
+};
 use crate::audio_setup::ProcessMode;
+use crate::params::Param;
+use std::num::NonZeroU32;
 
 /// Error codes for FFI operations.
 ///
@@ -74,6 +80,8 @@ pub type PluginHandle = *mut c_void;
 /// This struct is what gets stored behind the PluginHandle pointer.
 /// It provides a safe interface between the FFI layer and the NIH-plug Plugin trait.
 pub struct PluginWrapper {
+    /// The plugin instance.
+    plugin: TestGainPlugin,
     /// The plugin's parameters.
     params: Arc<dyn Params>,
     /// The current buffer configuration.
@@ -86,8 +94,9 @@ pub struct PluginWrapper {
 
 impl PluginWrapper {
     /// Create a new plugin wrapper.
-    pub fn new(params: Arc<dyn Params>) -> Self {
+    pub fn new(plugin: TestGainPlugin, params: Arc<dyn Params>) -> Self {
         Self {
+            plugin,
             params,
             buffer_config: None,
             audio_io_layout: None,
@@ -209,20 +218,92 @@ pub struct ParameterInfo {
 /// The returned handle must be freed with `plugin_destroy()`.
 #[no_mangle]
 pub unsafe extern "C" fn plugin_create() -> PluginHandle {
-    // For now, create a dummy wrapper with empty params
-    // In a full implementation, this would create the actual plugin instance
-    // We'll use a dummy implementation for now
-    let params = Arc::new(DummyParams);
-    let wrapper = Box::new(PluginWrapper::new(params));
+    // For now, create a simple gain plugin for testing
+    // In a full implementation, this would be configurable
+    let plugin = TestGainPlugin::default();
+    let params = plugin.params();
+    let wrapper = Box::new(PluginWrapper::new(plugin, params));
     Box::into_raw(wrapper) as PluginHandle
 }
 
-/// Dummy parameters implementation for testing.
-struct DummyParams;
+/// Simple test gain plugin for AUv3 testing.
+#[derive(Default)]
+struct TestGainPlugin {
+    params: Arc<TestGainParams>,
+}
 
-unsafe impl Params for DummyParams {
+struct TestGainParams {
+    pub gain: FloatParam,
+}
+
+impl Default for TestGainParams {
+    fn default() -> Self {
+        Self {
+            gain: FloatParam::new(
+                "Gain",
+                util::db_to_gain(0.0),
+                FloatRange::Skewed {
+                    min: util::db_to_gain(-30.0),
+                    max: util::db_to_gain(30.0),
+                    factor: FloatRange::gain_skew_factor(-30.0, 30.0),
+                },
+            )
+            .with_smoother(SmoothingStyle::Logarithmic(50.0))
+            .with_unit(" dB")
+            .with_value_to_string(formatters::v2s_f32_gain_to_db(2))
+            .with_string_to_value(formatters::s2v_f32_gain_to_db()),
+        }
+    }
+}
+
+unsafe impl Params for TestGainParams {
     fn param_map(&self) -> Vec<(String, crate::params::internals::ParamPtr, String)> {
-        Vec::new()
+        vec![(
+            "gain".to_string(),
+            self.gain.as_ptr(),
+            "Gain".to_string(),
+        )]
+    }
+}
+
+impl Plugin for TestGainPlugin {
+    const NAME: &'static str = "Test Gain AUv3";
+    const VENDOR: &'static str = "NIH-Plug";
+    const URL: &'static str = "https://github.com/robbert-vdh/nih-plug";
+    const EMAIL: &'static str = "info@example.com";
+    const VERSION: &'static str = "1.0.0";
+
+    const AUDIO_IO_LAYOUTS: &'static [AudioIOLayout] = &[
+        AudioIOLayout {
+            main_input_channels: NonZeroU32::new(2),
+            main_output_channels: NonZeroU32::new(2),
+            ..AudioIOLayout::const_default()
+        },
+    ];
+
+    const MIDI_INPUT: MidiConfig = MidiConfig::None;
+    const SAMPLE_ACCURATE_AUTOMATION: bool = true;
+
+    type SysExMessage = ();
+    type BackgroundTask = ();
+
+    fn params(&self) -> Arc<dyn Params> {
+        self.params.clone()
+    }
+
+    fn process(
+        &mut self,
+        buffer: &mut Buffer,
+        _aux: &mut AuxiliaryBuffers,
+        _context: &mut impl ProcessContext<Self>,
+    ) -> ProcessStatus {
+        for channel_samples in buffer.iter_samples() {
+            let gain = self.params.gain.smoothed.next();
+            for sample in channel_samples {
+                *sample *= gain;
+            }
+        }
+        ProcessStatus::Normal
     }
 }
 
@@ -478,5 +559,77 @@ pub unsafe extern "C" fn plugin_load_state(
 pub unsafe extern "C" fn plugin_free(ptr: *mut c_void) {
     if !ptr.is_null() {
         std::alloc::dealloc(ptr as *mut u8, std::alloc::Layout::from_size_align(1, 1).unwrap());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_plugin_creation_and_parameters() {
+        unsafe {
+            // Test plugin creation
+            let handle = plugin_create();
+            assert!(!handle.is_null(), "Plugin creation should succeed");
+
+            // Test parameter count
+            let param_count = plugin_get_parameter_count(handle);
+            assert_eq!(param_count, 1, "Should have exactly 1 parameter");
+
+            // Test parameter info
+            let mut param_info = ParameterInfo {
+                id: 0,
+                name: CString::new("").unwrap(),
+                unit: CString::new("").unwrap(),
+                min_value: 0.0,
+                max_value: 1.0,
+                default_value: 0.0,
+            };
+
+            let result = plugin_get_parameter_info(handle, 0, &mut param_info);
+            assert_eq!(result, 0, "Parameter info query should succeed");
+            assert_eq!(param_info.id, 0, "Parameter ID should be 0");
+            assert_eq!(param_info.name.to_string_lossy(), "Gain", "Parameter name should be 'Gain'");
+            assert_eq!(param_info.unit.to_string_lossy(), " dB", "Parameter unit should be ' dB'");
+
+            // Test parameter get/set
+            let mut value: f32 = 0.0;
+            let get_result = plugin_get_parameter(handle, 0, &mut value);
+            assert_eq!(get_result, 0, "Parameter get should succeed");
+            // The default value should be 0.5 (normalized value for 0 dB gain)
+            assert!((value - 0.5).abs() < 0.001, "Default parameter value should be 0.5 (normalized), got {}", value);
+
+            let set_result = plugin_set_parameter(handle, 0, 0.5);
+            assert_eq!(set_result, 0, "Parameter set should succeed");
+
+            let get_result2 = plugin_get_parameter(handle, 0, &mut value);
+            assert_eq!(get_result2, 0, "Parameter get after set should succeed");
+            assert!((value - 0.5).abs() < 0.001, "Parameter value should be 0.5 after setting");
+
+            // Test plugin destruction
+            let destroy_result = plugin_destroy(handle);
+            assert_eq!(destroy_result, 0, "Plugin destruction should succeed");
+        }
+    }
+
+    #[test]
+    fn test_parameter_info_structure() {
+        let params = TestGainParams::default();
+        let param_map = params.param_map();
+        
+        assert_eq!(param_map.len(), 1, "Should have exactly 1 parameter");
+        
+        let (id, param_ptr, name) = &param_map[0];
+        assert_eq!(id, "gain", "Parameter ID should be 'gain'");
+        assert_eq!(name, "Gain", "Parameter name should be 'Gain'");
+        
+        // Test parameter value conversion
+        let normalized_value = unsafe { param_ptr.modulated_normalized_value() };
+        // The default normalized value should be 0.5 (middle of the range for 0 dB gain)
+        assert!((normalized_value - 0.5).abs() < 0.001, "Default normalized value should be 0.5");
+        
+        let plain_value = unsafe { param_ptr.preview_plain(0.5) };
+        assert!(plain_value > 0.0, "Plain value should be positive for 0.5 normalized");
     }
 }

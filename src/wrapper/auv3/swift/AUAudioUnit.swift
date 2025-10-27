@@ -70,9 +70,62 @@ import AudioToolbox
     }
     
     private func setupParameterTree() {
-        // For now, create an empty parameter tree
-        // In a full implementation, this would query the Rust plugin for parameters
-        _parameterTree = AUParameterTree.createParameter(withIdentifier: "master", name: "Master", address: 0, min: 0, max: 1, unit: .generic, unitName: nil, flags: [], valueStrings: nil, dependentParameters: nil)
+        guard let handle = pluginHandle else { return }
+        
+        // Query the Rust plugin for parameter count
+        let paramCount = plugin_get_parameter_count(handle)
+        
+        if paramCount == 0 {
+            // No parameters, create empty tree
+            _parameterTree = AUParameterTree.createTree(withChildren: [])
+            return
+        }
+        
+        // Create parameters for each plugin parameter
+        var parameters: [AUParameter] = []
+        
+        for i in 0..<paramCount {
+            var paramInfo = ParameterInfo(id: 0, name: nil, unit: nil, minValue: 0, maxValue: 1, defaultValue: 0)
+            let result = plugin_get_parameter_info(handle, UInt32(i), &paramInfo)
+            
+            if result == 0 { // Success
+                let param = AUParameter.createParameter(
+                    withIdentifier: "param_\(i)",
+                    name: String(cString: paramInfo.name),
+                    address: UInt64(i),
+                    min: paramInfo.minValue,
+                    max: paramInfo.maxValue,
+                    unit: .generic,
+                    unitName: paramInfo.unit != nil ? String(cString: paramInfo.unit) : nil,
+                    flags: [],
+                    valueStrings: nil,
+                    dependentParameters: nil
+                )
+                
+                // Set up parameter value change handling
+                param.value = paramInfo.defaultValue
+                parameters.append(param)
+            }
+        }
+        
+        // Create the parameter tree with all parameters
+        _parameterTree = AUParameterTree.createTree(withChildren: parameters)
+        
+        // Set up parameter value change observers
+        setupParameterObservers()
+    }
+    
+    private func setupParameterObservers() {
+        guard let parameterTree = _parameterTree else { return }
+        
+        // Set up parameter value change handling
+        parameterTree.implementorValueObserver = { [weak self] parameter, value in
+            self?.updateParameter(parameter, value: value)
+        }
+        
+        parameterTree.implementorValueProvider = { [weak self] parameter in
+            return self?.getParameterValue(parameter) ?? 0.0
+        }
     }
     
     // MARK: - AVAudioUnit Overrides
@@ -142,7 +195,11 @@ import AudioToolbox
         guard let handle = pluginHandle else { return }
         
         let paramId = UInt32(parameter.address)
-        plugin_set_parameter(handle, paramId, value)
+        let result = plugin_set_parameter(handle, paramId, value)
+        
+        if result != 0 {
+            print("Failed to set parameter \(paramId) to value \(value), error: \(result)")
+        }
     }
     
     private func getParameterValue(_ parameter: AUParameter) -> Float {
@@ -150,7 +207,13 @@ import AudioToolbox
         
         let paramId = UInt32(parameter.address)
         var value: Float = 0.0
-        plugin_get_parameter(handle, paramId, &value)
+        let result = plugin_get_parameter(handle, paramId, &value)
+        
+        if result != 0 {
+            print("Failed to get parameter \(paramId), error: \(result)")
+            return 0.0
+        }
+        
         return value
     }
 }
