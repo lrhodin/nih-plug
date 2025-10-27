@@ -55,6 +55,7 @@ Study the AUv2 code for NIH-plug integration patterns, but do NOT reuse the AU w
    - Ready for upstream merge
    - Well-documented
    - Tested in real DAWs
+   - **Validated with pluginval** - All AUv3 plugins must pass pluginval strictness level 5
 
 ## Architecture
 
@@ -114,3 +115,35 @@ Where possible, reuse:
 - State serialization
 - Buffer and context patterns
 - Follow VST3/CLAP wrapper structure
+
+## Validation Requirements
+
+### Automated Validation with pluginval
+
+All AUv3 plugins built with NIH-plug must pass automated validation using [pluginval](https://github.com/Tracktion/pluginval).
+
+**Setup:**
+1. Download pluginval binary for macOS from [releases](https://github.com/Tracktion/pluginval/releases)
+2. Install to a known location (e.g., `~/bin/pluginval`)
+3. Make executable: `chmod +x ~/bin/pluginval`
+
+**Validation Process:**
+1. Build a test AUv3 plugin using NIH-plug (e.g., gain example)
+2. Run pluginval in headless mode:
+   ```bash
+   pluginval --strictness-level 5 --validate-in-process --verbose /path/to/plugin.appex
+   ```
+3. Check exit code: 0 = pass, 1 = fail
+4. Review console output for any warnings or errors
+
+**Success Criteria:**
+- Exit code must be 0 (all tests pass)
+- No crashes during parameter fuzzing
+- No memory leaks detected
+- State save/restore works correctly
+- Audio processing doesn't produce NaN values
+
+**Integration:**
+- Add pluginval validation as final step before requesting human testing
+- Document validation results in handoff notes
+- If validation fails, fix issues before proceeding to DAW testing

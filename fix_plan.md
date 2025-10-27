@@ -100,7 +100,29 @@ Study the AUv2 code in `src/wrapper/au/` for NIH-plug integration patterns, but 
 - [ ] Handle code signing
 - [ ] Create installation script
 
-## Phase 8: Polish & Testing (CHECKPOINT: Production ready)
+## Phase 8: Automated Validation (CHECKPOINT: Passes pluginval)
+
+**BEFORE requesting human DAW testing, validate plugins with pluginval**
+
+- [ ] Download and install pluginval for macOS
+- [ ] Build test AUv3 plugin (e.g., gain example with AUv3 export)
+- [ ] Run pluginval in headless mode at strictness level 5
+- [ ] Fix any validation failures (crashes, NaN values, state issues)
+- [ ] Document validation results in handoff
+- [ ] **CHECKPOINT: Plugin passes pluginval strictness level 5**
+
+### Validation Command:
+```bash
+pluginval --strictness-level 5 --validate-in-process --verbose /path/to/TestPlugin.appex
+```
+
+### Success Criteria:
+- Exit code 0 (all tests pass)
+- No crashes during parameter fuzzing
+- State save/restore works
+- No NaN audio values produced
+
+## Phase 9: Polish & Testing (CHECKPOINT: Production ready)
 
 - [ ] Add comprehensive error handling
 - [ ] Add logging and diagnostics

@@ -178,6 +178,48 @@ When you believe the project is ~80% complete:
 - **Tests explain WHY** - not just "test_add() asserts 2+2=4"
 - **Eventual consistency** - trust the process, keep iterating
 - **Be deterministic** - when uncertain, choose a clear path and commit
+- **Validate before human testing** - use pluginval to catch issues automatically
+
+## Automated Validation with pluginval
+
+**CRITICAL:** Before requesting human DAW testing, validate AUv3 plugins with pluginval.
+
+### Setup (one-time):
+1. Download pluginval for macOS: https://github.com/Tracktion/pluginval/releases
+2. Install to `~/bin/pluginval` or system path
+3. Make executable: `chmod +x ~/bin/pluginval`
+
+### Validation Process:
+When you reach a testing checkpoint (Phases 5, 6, 8):
+
+1. **Build a test plugin:**
+   ```bash
+   cargo xtask bundle-universal gain --release
+   ```
+
+2. **Run pluginval:**
+   ```bash
+   pluginval --strictness-level 5 --validate-in-process --verbose \
+     ~/.vst3/NIH-plug/Gain.appex
+   ```
+
+3. **Check results:**
+   - Exit code 0 = PASS (ready for human testing)
+   - Exit code 1 = FAIL (fix issues first)
+   - Review console output for specific failures
+
+4. **Document in handoff:**
+   - Include validation results
+   - Note any warnings or errors
+   - If failed, document what needs fixing
+
+### Common Issues to Fix:
+- Crashes during parameter fuzzing → check FFI error handling
+- NaN audio values → check buffer initialization
+- State save/restore failures → check serialization logic
+- Memory leaks → check Rust FFI memory management
+
+**Only proceed to request human testing after pluginval passes.**
 
 ## Current State
 
