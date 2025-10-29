@@ -114,7 +114,11 @@ midir = { version = "0.9.1", optional = true }
 rtrb = { version = "0.2.2", optional = true }
 
 # Used for the `vst3` feature
-vst3-sys = { git = "https://github.com/robbert-vdh/vst3-sys.git", branch = "fix/drop-box-from-raw", optional = true }
+# Local development: use path to local fork
+vst3-sys = { path = "../vst3-sys", optional = true }
+
+# Production: use GitHub fork (uncomment when building releases)
+# vst3-sys = { git = "https://github.com/lrhodin/vst3-sys.git", branch = "fix/iinfolistener-signature", optional = true }
 
 # Used for the `zstd` feature
 zstd = { version = "0.12.3", optional = true }
